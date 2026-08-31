@@ -1,0 +1,33 @@
+name: Go SDK
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    strategy:
+      matrix:
+        go: ['1.26.x', '1.27.x']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: Formatting
+        run: test -z "$(gofmt -l january examples/go/main.go examples/local-http/main.go examples/quickstart)"
+      - name: Offline tests and race detector (including README quickstart)
+        run: go test -race ./...
+      - name: Build module
+        run: go build ./...
+      - name: Token server example tests
+        working-directory: examples/go
+        run: go test -race -v .
+      - name: Build token server example
+        working-directory: examples/go
+        run: go build -o "$RUNNER_TEMP/january-legacy-example" .
+      - name: Install and run local HTTP consumer
+        working-directory: examples/local-http
+        run: |
+          GOBIN="$RUNNER_TEMP" go install .
+          "$RUNNER_TEMP/january-local-http-consumer"

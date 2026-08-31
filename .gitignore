@@ -1,0 +1,8 @@
+examples/go/january-server-go-example
+.env
+.env.*
+!.env.example
+.e2e-results/
+.DS_Store
+*.test
+coverage.out

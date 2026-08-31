@@ -1,0 +1,113 @@
+{
+  "language": "go",
+  "operations": [
+    {
+      "operationId": "searchFoods",
+      "resource": "Foods",
+      "method": "Search",
+      "audience": "shared"
+    },
+    {
+      "operationId": "autocompleteFoods",
+      "resource": "Foods",
+      "method": "Autocomplete",
+      "audience": "shared"
+    },
+    {
+      "operationId": "suggestFoodAlternatives",
+      "resource": "Foods",
+      "method": "SuggestAlternatives",
+      "audience": "shared"
+    },
+    {
+      "operationId": "lookupFoodByBarcode",
+      "resource": "Foods",
+      "method": "LookupBarcode",
+      "audience": "shared"
+    },
+    {
+      "operationId": "getFood",
+      "resource": "Foods",
+      "method": "Get",
+      "audience": "shared"
+    },
+    {
+      "operationId": "searchRestaurants",
+      "resource": "Restaurants",
+      "method": "Search",
+      "audience": "shared"
+    },
+    {
+      "operationId": "searchRestaurantMenuItems",
+      "resource": "Restaurants",
+      "method": "SearchMenuItems",
+      "audience": "shared"
+    },
+    {
+      "operationId": "scanFoodPhoto",
+      "resource": "FoodAnalysis",
+      "method": "AnalyzePhoto",
+      "audience": "shared"
+    },
+    {
+      "operationId": "searchFoodsByNaturalLanguage",
+      "resource": "FoodAnalysis",
+      "method": "AnalyzeDescription",
+      "audience": "shared"
+    },
+    {
+      "operationId": "correctPhotoScan",
+      "resource": "FoodAnalysis",
+      "method": "Correct",
+      "audience": "shared"
+    },
+    {
+      "operationId": "createFoodLog",
+      "resource": "FoodLogs",
+      "method": "Create",
+      "audience": "shared"
+    },
+    {
+      "operationId": "listFoodLogs",
+      "resource": "FoodLogs",
+      "method": "List",
+      "audience": "shared"
+    },
+    {
+      "operationId": "updateFoodLog",
+      "resource": "FoodLogs",
+      "method": "Update",
+      "audience": "shared"
+    },
+    {
+      "operationId": "deleteFoodLog",
+      "resource": "FoodLogs",
+      "method": "Delete",
+      "audience": "shared"
+    },
+    {
+      "operationId": "predictGlucose",
+      "resource": "Glucose",
+      "method": "Predict",
+      "audience": "shared"
+    },
+    {
+      "operationId": "mintClientToken",
+      "resource": null,
+      "method": "MintClientToken",
+      "audience": "server"
+    },
+    {
+      "operationId": "revokeClientTokens",
+      "resource": null,
+      "method": "RevokeClientTokens",
+      "audience": "server"
+    },
+    {
+      "operationId": "credits",
+      "resource": null,
+      "method": "Credits",
+      "audience": "server"
+    }
+  ]
+}
