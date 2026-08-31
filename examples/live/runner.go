@@ -19,7 +19,7 @@ import (
 
 var operationLabels = []string{
 	"credits", "foods.search", "foods.autocomplete", "foods.get", "foods.lookupBarcode", "foods.suggestAlternatives",
-	"restaurants.search", "restaurants.searchMenuItems", "foodAnalysis.analyzePhoto", "foodAnalysis.analyzeDescription", "foodAnalysis.correct",
+	"restaurants.search", "restaurants.getMenuItems", "restaurants.searchMenuItems", "foodAnalysis.analyzePhoto", "foodAnalysis.analyzeDescription", "foodAnalysis.correct",
 	"foodLogs.create", "foodLogs.list", "foodLogs.update", "foodLogs.delete", "glucose.predict", "mintClientToken", "revokeClientTokens",
 }
 
@@ -73,7 +73,7 @@ func (r *runReport) finish() {
 			r.CleanupFailed++
 		}
 	}
-	ready := r.Counts.Passed == 18 && r.Counts.Failed == 0 && r.Counts.Blocked == 0 && r.CleanupFailed == 0
+	ready := r.Counts.Passed == 19 && r.Counts.Failed == 0 && r.Counts.Blocked == 0 && r.CleanupFailed == 0
 	for _, v := range r.Checks {
 		if v.Status != "PASS" {
 			ready = false
@@ -384,8 +384,19 @@ func runWorkflow(ctx context.Context, c config, emit func(result), newClient fun
 		}
 		return meta, assert(value != nil && value.Alternatives != nil)
 	})
+	var restaurantID string
 	r.step("restaurants.search", "", func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.Restaurants.Search(ctx, january.SearchRestaurantsRequest{Query: c.restaurantQuery, Latitude: c.latitude, Longitude: c.longitude})
+		if err != nil {
+			return meta, err
+		}
+		if value != nil && len(value.Items) > 0 {
+			restaurantID = value.Items[0].ID
+		}
+		return meta, assert(value != nil && value.Items != nil && value.TotalCount >= 0)
+	})
+	r.step("restaurants.getMenuItems", dependency(restaurantID != "", "no_live_restaurant_id"), func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.Restaurants.GetMenuItems(ctx, january.GetRestaurantMenuItemsRequest{RestaurantID: restaurantID})
 		if err != nil {
 			return meta, err
 		}

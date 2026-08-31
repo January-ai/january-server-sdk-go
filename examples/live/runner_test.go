@@ -77,7 +77,7 @@ func TestMissingKeyNoNetwork(t *testing.T) {
 		t.Fatal("missing key must fail before HTTP")
 	}
 	r := readReport(t, root)
-	if r.Status != "NOT_RUN" || r.Counts.Passed != 0 || r.Counts.Blocked != 18 {
+	if r.Status != "NOT_RUN" || r.Counts.Passed != 0 || r.Counts.Blocked != 19 {
 		t.Fatal("wrong not-run counts")
 	}
 }
@@ -331,7 +331,7 @@ func status(r runReport, label string) string {
 	}
 	return ""
 }
-func TestLiveWorkflowAll18Offline(t *testing.T) {
+func TestLiveWorkflowAll19Offline(t *testing.T) {
 	s := newFake(t, nil)
 	root := t.TempDir()
 	c := s.config(root)
@@ -341,7 +341,7 @@ func TestLiveWorkflowAll18Offline(t *testing.T) {
 		t.Fatal(out.String())
 	}
 	r := readReport(t, root)
-	if r.Status != "PASS" || r.Counts.Passed != 18 || r.Counts.Failed != 0 || r.Counts.Blocked != 0 || r.CleanupFailed != 0 {
+	if r.Status != "PASS" || r.Counts.Passed != 19 || r.Counts.Failed != 0 || r.Counts.Blocked != 0 || r.CleanupFailed != 0 {
 		t.Fatalf("wrong counts: %+v", r.Counts)
 	}
 	for _, f := range s.fixtures {

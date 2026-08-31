@@ -382,7 +382,7 @@ source, resolve the SDK locally for testing, and exercise one localhost
 request. These checks are included in the normal CI test command.
 
 The [live E2E demo](docs/live-testing.md) is a separate explicit opt-in that uses
-real credits and exercises all 18 operations with cleanup. Its `.env` setup,
+real credits and exercises all 19 operations with cleanup. Its `.env` setup,
 safety rules, options, and reporting are documented there.
 See [contributor checks](CONTRIBUTING.md#build-and-test) for full offline verification.
 
