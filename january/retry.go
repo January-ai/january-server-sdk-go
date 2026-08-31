@@ -8,6 +8,7 @@ import (
 	"math/rand/v2"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -72,9 +73,14 @@ func retryDelay(op operation, err error, attempt int, waited time.Duration) (tim
 			return 0, false, false
 		}
 		var netOp *net.OpError
-		preSend := errors.As(err, &netOp) && netOp.Op == "dial"
+		cause := transportError.Cause
+		var urlError *url.Error
+		if errors.As(cause, &urlError) {
+			cause = urlError.Err
+		}
+		preSend := errors.As(cause, &netOp) && netOp.Op == "dial"
 		var netError net.Error
-		ambiguous := errors.As(err, &netError) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)
+		ambiguous := errors.As(cause, &netError) || errors.Is(cause, io.EOF) || errors.Is(cause, io.ErrUnexpectedEOF)
 		if !preSend && !(op.RetryAmbiguous && ambiguous) {
 			return 0, false, false
 		}
