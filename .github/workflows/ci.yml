@@ -5,6 +5,7 @@ permissions:
 jobs:
   test-and-build:
     strategy:
+      fail-fast: false
       matrix:
         go: ['1.26.x', '1.27.x']
         os: [ubuntu-latest]
@@ -24,7 +25,12 @@ jobs:
           go-version: ${{ matrix.go }}
           cache: false
       - name: Formatting
-        run: test -z "$(gofmt -l january examples/go/main.go examples/local-http/main.go examples/quickstart)"
+        run: |
+          unformatted="$(gofmt -l january examples/go/main.go examples/local-http/main.go examples/quickstart)"
+          if [[ -n "$unformatted" ]]; then
+            echo "$unformatted"
+            exit 1
+          fi
       - name: Offline tests and race detector (including README quickstart)
         run: go test -race ./...
       - name: Build module
