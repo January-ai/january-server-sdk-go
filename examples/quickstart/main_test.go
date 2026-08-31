@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -53,6 +54,9 @@ func TestQuickstartExecutable(t *testing.T) {
 	}
 	installOfflineTransport(t, dir)
 	binary := filepath.Join(dir, "quickstart")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	build := exec.CommandContext(ctx, "go", "build", "-o", binary, filepath.Join(dir, "main.go"), filepath.Join(dir, "transport.go"))
 	build.Env = offlineGoEnv()
 	if output, err := build.CombinedOutput(); err != nil {

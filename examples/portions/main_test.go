@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +27,9 @@ func runOfflineExample(t *testing.T, source string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	binary := filepath.Join(dir, "portion-example")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	build := exec.CommandContext(ctx, "go", "build", "-o", binary, path)
 	build.Env = env
 	if output, err := build.CombinedOutput(); err != nil {
