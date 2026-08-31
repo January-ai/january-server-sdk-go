@@ -722,6 +722,29 @@ func (v GetFoodRequest) MarshalJSON() ([]byte, error) {
 func (v GetFoodRequest) String() string   { return "january.GetFoodRequest{[REDACTED]}" }
 func (v GetFoodRequest) GoString() string { return v.String() }
 
+// GetRestaurantMenuItemsRequest is generated from the January contract.
+type GetRestaurantMenuItemsRequest struct {
+	EndUserID    string          `json:"x-end-user-id,omitempty"`
+	RestaurantID string          `json:"restaurant_id"`
+	Limit        Optional[int64] `json:"limit"`
+	Offset       Optional[int64] `json:"offset"`
+}
+
+func (v GetRestaurantMenuItemsRequest) MarshalJSON() ([]byte, error) {
+	m := map[string]any{}
+	if v.EndUserID != "" {
+		m["x-end-user-id"] = v.EndUserID
+	}
+	m["restaurant_id"] = v.RestaurantID
+	putOptional(m, "limit", v.Limit)
+	putOptional(m, "offset", v.Offset)
+	return json.Marshal(m)
+}
+func (v GetRestaurantMenuItemsRequest) String() string {
+	return "january.GetRestaurantMenuItemsRequest{[REDACTED]}"
+}
+func (v GetRestaurantMenuItemsRequest) GoString() string { return v.String() }
+
 // GlucoseChart is generated from the January contract.
 type GlucoseChart struct {
 	// Min: Suggested Y-axis lower bound (mg/dL). A fixed target-range bound, not the minimum of the curve.

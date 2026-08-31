@@ -99,6 +99,12 @@ func invokeFixture(c *Client, id string, raw []byte) (any, *Response, error) {
 			return nil, nil, err
 		}
 		return c.Glucose.Predict(context.Background(), input)
+	case "getRestaurantMenuItems":
+		var input GetRestaurantMenuItemsRequest
+		if err := json.Unmarshal(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		return c.Restaurants.GetMenuItems(context.Background(), input)
 	case "mintClientToken":
 		var input MintClientTokenRequest
 		if err := json.Unmarshal(raw, &input); err != nil {

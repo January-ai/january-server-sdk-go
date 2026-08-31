@@ -1306,6 +1306,91 @@
       }
     },
     {
+      "operationId": "getRestaurantMenuItems",
+      "method": "GET",
+      "path": "/v1.2/restaurants/{restaurant_id}/menu-items",
+      "resource": "restaurants",
+      "publicMethod": "getMenuItems",
+      "audience": "shared",
+      "parameterNames": {
+        "x-end-user-id": "endUserId",
+        "x-end-user-timezone": "endUserTimezone"
+      },
+      "request": {
+        "parameters": {
+          "path": {
+            "restaurant_id": "cafe-123"
+          },
+          "query": {
+            "limit": 2,
+            "offset": 1
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "x-request-id": "request-getRestaurantMenuItems"
+        },
+        "body": {
+          "total_count": 1,
+          "items": [
+            {
+              "type": "menu_item",
+              "id": "228990954",
+              "name": "burger",
+              "restaurant_name": "morning due cafe",
+              "is_chain": false,
+              "nutrients": {
+                "calories": {
+                  "value": 800,
+                  "unit": "calories"
+                },
+                "protein": {
+                  "value": 48,
+                  "unit": "grams"
+                },
+                "carbohydrates": {
+                  "value": 40,
+                  "unit": "grams"
+                },
+                "net_carbohydrates": {
+                  "value": 38,
+                  "unit": "grams"
+                },
+                "total_fat": {
+                  "value": 45,
+                  "unit": "grams"
+                },
+                "fiber": {
+                  "value": 2,
+                  "unit": "grams"
+                },
+                "total_sugars": {
+                  "value": 6,
+                  "unit": "grams"
+                }
+              },
+              "glycemic_index": 48.5,
+              "glycemic_load": 36.67,
+              "image_url": "https://example.com/burger.png",
+              "servings": [
+                {
+                  "id": 189343592,
+                  "scaling_factor": 1,
+                  "quantity": 1,
+                  "unit": "serving",
+                  "weight_grams": null,
+                  "is_primary": true
+                }
+              ],
+              "distance": 124
+            }
+          ]
+        }
+      }
+    },
+    {
       "operationId": "mintClientToken",
       "method": "POST",
       "path": "/v1.2/auth/client-tokens",

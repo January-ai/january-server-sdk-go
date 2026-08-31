@@ -277,6 +277,24 @@ func (c *GlucoseService) Predict(ctx context.Context, request PredictGlucoseRequ
 	return &result, response, nil
 }
 
+var opGetRestaurantMenuItems = operation{ID: "getRestaurantMenuItems", Method: "GET", Path: "/v1.2/restaurants/{restaurant_id}/menu-items", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}, {Name: "restaurant_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"type\":\"string\",\"maxLength\":256,\"pattern\":\"^[A-Za-z0-9_-]{1,256}$\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"type\":\"integer\",\"minimum\":1,\"maximum\":100}")}, {Name: "offset", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"type\":\"integer\",\"minimum\":0,\"maximum\":2147483647}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/SearchRestaurantMenuItemsResponse\"}")}}
+
+func init() {
+	opGetRestaurantMenuItems.RetryNever = false
+	opGetRestaurantMenuItems.RetryAmbiguous = true
+}
+
+// GetMenuItems Get menu items by restaurant id.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
+func (c *RestaurantsService) GetMenuItems(ctx context.Context, request GetRestaurantMenuItemsRequest) (*SearchRestaurantMenuItemsResponse, *Response, error) {
+	var result SearchRestaurantMenuItemsResponse
+	response, err := execute(ctx, c.service, opGetRestaurantMenuItems, request, &result)
+	if err != nil {
+		return nil, response, err
+	}
+	return &result, response, nil
+}
+
 var opMintClientToken = operation{ID: "mintClientToken", Method: "POST", Path: "/v1.2/auth/client-tokens", Parameters: []parameter{}, BodyFields: []string{"end_user_id", "scopes", "ttl_seconds"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"end_user_id\":{\"type\":\"string\",\"maxLength\":64},\"scopes\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"foods:read\",\"food_scans:write\",\"food_logs:read\",\"food_logs:write\",\"glucose:read\",\"restaurants:read\"]}},\"ttl_seconds\":{\"type\":\"number\",\"minimum\":300,\"maximum\":7200}},\"required\":[\"end_user_id\"]}"), ResponseSchemas: map[int]json.RawMessage{201: json.RawMessage("{\"$ref\":\"#/components/schemas/ClientTokenResponseDto\"}")}}
 
 func init() { opMintClientToken.RetryNever = false; opMintClientToken.RetryAmbiguous = false }

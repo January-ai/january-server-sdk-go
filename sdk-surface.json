@@ -92,6 +92,12 @@
       "audience": "shared"
     },
     {
+      "operationId": "getRestaurantMenuItems",
+      "resource": "Restaurants",
+      "method": "GetMenuItems",
+      "audience": "shared"
+    },
+    {
       "operationId": "mintClientToken",
       "resource": null,
       "method": "MintClientToken",

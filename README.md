@@ -404,3 +404,15 @@ installation tests.
 - [Generated operation surface](sdk-surface.json) and [contract lock](sdk-contract.lock.json)
 - [Contributing, generation, builds, and compatibility](CONTRIBUTING.md)
 - For support and feedback, email [support@january.ai](mailto:support@january.ai).
+
+## Menu items by restaurant ID
+
+Use the ID of a `restaurant` search result to load its menu, independently of search text and location.
+
+```go
+page, response, err := client.Restaurants.GetMenuItems(ctx, january.GetRestaurantMenuItemsRequest{RestaurantID: restaurant.ID})
+```
+
+The response contains `items` and `TotalCount` (`total_count` on the wire). Request subsequent pages by advancing `offset` by the number of items received, until it reaches the total or a page is empty. An unknown restaurant returns 404; an existing restaurant with no menu returns an empty list.
+
+This operation requires the backend restaurant-ID menu endpoint; deployment is pending for this unreleased change.
