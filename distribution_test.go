@@ -3,7 +3,9 @@ package january_test
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"io/fs"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -67,6 +69,24 @@ func TestModuleDistribution(t *testing.T) {
 	write(filepath.Join(versionDir, version+".mod"), read("go.mod"))
 	write(filepath.Join(versionDir, version+".info"), []byte(`{"Version":"v0.0.0","Time":"2026-08-30T00:00:00Z"}`))
 	write(filepath.Join(versionDir, "list"), []byte(version+"\n"))
+	// Mirror the already-installed image dependency into this offline proxy.
+	// Keep the consumer isolated from local replace directives and the internet.
+	dependencyJSON, err := exec.Command("go", "list", "-m", "-json", "golang.org/x/image").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var dependency struct{ Version, GoMod string }
+	if err := json.Unmarshal(dependencyJSON, &dependency); err != nil {
+		t.Fatal(err)
+	}
+	dependencyDir := filepath.Join(proxy, "golang.org/x/image/@v")
+	if err := os.MkdirAll(dependencyDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, suffix := range []string{".mod", ".info", ".zip"} {
+		write(filepath.Join(dependencyDir, dependency.Version+suffix), read(strings.TrimSuffix(dependency.GoMod, ".mod")+suffix))
+	}
+	write(filepath.Join(dependencyDir, "list"), []byte(dependency.Version+"\n"))
 	consumer := filepath.Join(dir, "consumer")
 	if err := os.Mkdir(consumer, 0755); err != nil {
 		t.Fatal(err)
@@ -76,8 +96,13 @@ func TestModuleDistribution(t *testing.T) {
 	cmd := exec.Command("go", "run", "-mod=mod", ".")
 	cmd.Dir = consumer
 	// Inherit build infrastructure only, never real credentials or proxy settings.
-	cmd.Env = []string{"GOWORK=off", "GOSUMDB=off", "GOTOOLCHAIN=local", "GOFLAGS=-modcacherw", "GOPROXY=file://" + proxy, "GOMODCACHE=" + filepath.Join(dir, "cache")}
-	for _, name := range []string{"PATH", "HOME", "TMPDIR", "GOCACHE", "GOPATH", "GOROOT"} {
+	proxyPath := filepath.ToSlash(proxy)
+	if !strings.HasPrefix(proxyPath, "/") {
+		proxyPath = "/" + proxyPath
+	}
+	proxyURL := (&url.URL{Scheme: "file", Path: proxyPath}).String()
+	cmd.Env = []string{"GOWORK=off", "GOSUMDB=off", "GOTOOLCHAIN=local", "GOFLAGS=-modcacherw", "GOPROXY=" + proxyURL, "GOMODCACHE=" + filepath.Join(dir, "cache")}
+	for _, name := range []string{"PATH", "HOME", "USERPROFILE", "LOCALAPPDATA", "APPDATA", "SystemRoot", "TEMP", "TMP", "TMPDIR", "GOCACHE", "GOPATH", "GOROOT"} {
 		if value, ok := os.LookupEnv(name); ok {
 			cmd.Env = append(cmd.Env, name+"="+value)
 		}

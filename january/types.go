@@ -12,8 +12,11 @@ type Config struct {
 	SecretKey  string
 	BaseURL    string
 	HTTPClient *http.Client
-	// Timeout bounds an entire call. Defaults to 30 seconds; context deadlines can shorten it.
+	// Timeout bounds an entire call, including retries. Defaults to 30 seconds
+	// (120 seconds for photo and natural-language analysis). Context may shorten it.
 	Timeout time.Duration
+	// MaxRetries defaults to two. Use Value(0) to disable automatic retries.
+	MaxRetries Optional[int]
 	// Deprecated: override used only by the prototype ClientTokens.Create alias.
 	ClientTokenPath string
 	// Explicit demo issuer, used only by the prototype alias.

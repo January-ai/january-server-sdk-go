@@ -44,7 +44,10 @@ func newGeneratedUserClient(t *transport, u userContext) *UserClient {
 
 var opSearchFoods = operation{ID: "searchFoods", Method: "GET", Path: "/v1.2/foods", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "query", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":256,\"type\":\"string\"}")}, {Name: "category", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodCategory\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":40,\"type\":\"number\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodSearchResults\"}")}}
 
-// Search executes searchFoods without automatic retries.
+func init() { opSearchFoods.RetryNever = false; opSearchFoods.RetryAmbiguous = true }
+
+// Search Search foods by name.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodsService) Search(ctx context.Context, request SearchFoodsRequest) (*FoodSearchResults, *Response, error) {
 	var result FoodSearchResults
 	response, err := execute(ctx, c.service, opSearchFoods, request, &result)
@@ -56,7 +59,10 @@ func (c *FoodsService) Search(ctx context.Context, request SearchFoodsRequest) (
 
 var opAutocompleteFoods = operation{ID: "autocompleteFoods", Method: "GET", Path: "/v1.2/foods/autocomplete", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "query", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":64,\"type\":\"string\"}")}, {Name: "category", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/AutocompleteFoodCategory\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":20,\"type\":\"number\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/AutocompleteFoodsResponse\"}")}}
 
-// Autocomplete executes autocompleteFoods without automatic retries.
+func init() { opAutocompleteFoods.RetryNever = false; opAutocompleteFoods.RetryAmbiguous = true }
+
+// Autocomplete Autocomplete food names.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodsService) Autocomplete(ctx context.Context, request AutocompleteFoodsRequest) (*AutocompleteFoodsResponse, *Response, error) {
 	var result AutocompleteFoodsResponse
 	response, err := execute(ctx, c.service, opAutocompleteFoods, request, &result)
@@ -68,7 +74,13 @@ func (c *FoodsService) Autocomplete(ctx context.Context, request AutocompleteFoo
 
 var opSuggestFoodAlternatives = operation{ID: "suggestFoodAlternatives", Method: "POST", Path: "/v1.2/foods/{food_id}/alternatives", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "food_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodId\"}")}}, BodyFields: []string{"diet_restrictions", "diet_preferences"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"diet_restrictions\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/DietRestriction\"},\"minItems\":1},\"diet_preferences\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/DietPreference\"},\"minItems\":1}}}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/SuggestFoodAlternativesResponse\"}")}}
 
-// SuggestAlternatives executes suggestFoodAlternatives without automatic retries.
+func init() {
+	opSuggestFoodAlternatives.RetryNever = false
+	opSuggestFoodAlternatives.RetryAmbiguous = true
+}
+
+// SuggestAlternatives Suggest healthier alternatives for a food.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodsService) SuggestAlternatives(ctx context.Context, request SuggestFoodAlternativesRequest) (*SuggestFoodAlternativesResponse, *Response, error) {
 	var result SuggestFoodAlternativesResponse
 	response, err := execute(ctx, c.service, opSuggestFoodAlternatives, request, &result)
@@ -80,7 +92,10 @@ func (c *FoodsService) SuggestAlternatives(ctx context.Context, request SuggestF
 
 var opLookupFoodByBarcode = operation{ID: "lookupFoodByBarcode", Method: "GET", Path: "/v1.2/foods/barcode/{upc}", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "upc", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/Barcode\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodSearchResults\"}")}}
 
-// LookupBarcode executes lookupFoodByBarcode without automatic retries.
+func init() { opLookupFoodByBarcode.RetryNever = false; opLookupFoodByBarcode.RetryAmbiguous = true }
+
+// LookupBarcode Look up a food by barcode.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodsService) LookupBarcode(ctx context.Context, request LookupFoodByBarcodeRequest) (*FoodSearchResults, *Response, error) {
 	var result FoodSearchResults
 	response, err := execute(ctx, c.service, opLookupFoodByBarcode, request, &result)
@@ -92,7 +107,10 @@ func (c *FoodsService) LookupBarcode(ctx context.Context, request LookupFoodByBa
 
 var opGetFood = operation{ID: "getFood", Method: "GET", Path: "/v1.2/foods/{food_id}", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "food_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodId\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodSearchItem\"}")}}
 
-// Get executes getFood without automatic retries.
+func init() { opGetFood.RetryNever = false; opGetFood.RetryAmbiguous = true }
+
+// Get Get a food.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodsService) Get(ctx context.Context, request GetFoodRequest) (*FoodSearchItem, *Response, error) {
 	var result FoodSearchItem
 	response, err := execute(ctx, c.service, opGetFood, request, &result)
@@ -104,7 +122,10 @@ func (c *FoodsService) Get(ctx context.Context, request GetFoodRequest) (*FoodSe
 
 var opSearchRestaurants = operation{ID: "searchRestaurants", Method: "GET", Path: "/v1.2/restaurants", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "radius", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":17000,\"type\":\"number\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":100,\"type\":\"number\"}")}, {Name: "query", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":256,\"type\":\"string\"}")}, {Name: "latitude", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"minimum\":-90,\"maximum\":90,\"type\":\"number\"}")}, {Name: "longitude", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"minimum\":-180,\"maximum\":180,\"type\":\"number\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/SearchRestaurantsResponse\"}")}}
 
-// Search executes searchRestaurants without automatic retries.
+func init() { opSearchRestaurants.RetryNever = false; opSearchRestaurants.RetryAmbiguous = true }
+
+// Search Search restaurants near a location.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *RestaurantsService) Search(ctx context.Context, request SearchRestaurantsRequest) (*SearchRestaurantsResponse, *Response, error) {
 	var result SearchRestaurantsResponse
 	response, err := execute(ctx, c.service, opSearchRestaurants, request, &result)
@@ -116,7 +137,13 @@ func (c *RestaurantsService) Search(ctx context.Context, request SearchRestauran
 
 var opSearchRestaurantMenuItems = operation{ID: "searchRestaurantMenuItems", Method: "GET", Path: "/v1.2/restaurants/menu-items", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "radius", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":17000,\"type\":\"number\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":100,\"type\":\"number\"}")}, {Name: "query", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":256,\"type\":\"string\"}")}, {Name: "latitude", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"minimum\":-90,\"maximum\":90,\"type\":\"number\"}")}, {Name: "longitude", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"minimum\":-180,\"maximum\":180,\"type\":\"number\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/SearchRestaurantMenuItemsResponse\"}")}}
 
-// SearchMenuItems executes searchRestaurantMenuItems without automatic retries.
+func init() {
+	opSearchRestaurantMenuItems.RetryNever = false
+	opSearchRestaurantMenuItems.RetryAmbiguous = true
+}
+
+// SearchMenuItems Search menu items near a location.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *RestaurantsService) SearchMenuItems(ctx context.Context, request SearchRestaurantMenuItemsRequest) (*SearchRestaurantMenuItemsResponse, *Response, error) {
 	var result SearchRestaurantMenuItemsResponse
 	response, err := execute(ctx, c.service, opSearchRestaurantMenuItems, request, &result)
@@ -128,7 +155,11 @@ func (c *RestaurantsService) SearchMenuItems(ctx context.Context, request Search
 
 var opScanFoodPhoto = operation{ID: "scanFoodPhoto", Method: "POST", Path: "/v1.2/food-scans/photo", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}}, BodyFields: []string{"image"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"image\":{\"type\":\"string\"}},\"required\":[\"image\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodScan\"}")}}
 
-// AnalyzePhoto executes scanFoodPhoto without automatic retries.
+func init() { opScanFoodPhoto.RetryNever = false; opScanFoodPhoto.RetryAmbiguous = true }
+
+// AnalyzePhoto Scan a food or label photo.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
+// Use PrepareImage for trusted paths, image bytes, readers, or image.Image values.
 func (c *FoodAnalysisService) AnalyzePhoto(ctx context.Context, request ScanFoodPhotoRequest) (*FoodScan, *Response, error) {
 	var result FoodScan
 	response, err := execute(ctx, c.service, opScanFoodPhoto, request, &result)
@@ -140,7 +171,13 @@ func (c *FoodAnalysisService) AnalyzePhoto(ctx context.Context, request ScanFood
 
 var opSearchFoodsByNaturalLanguage = operation{ID: "searchFoodsByNaturalLanguage", Method: "POST", Path: "/v1.2/food-scans/text", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}}, BodyFields: []string{"text"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"maxLength\":512}},\"required\":[\"text\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodScan\"}")}}
 
-// AnalyzeDescription executes searchFoodsByNaturalLanguage without automatic retries.
+func init() {
+	opSearchFoodsByNaturalLanguage.RetryNever = false
+	opSearchFoodsByNaturalLanguage.RetryAmbiguous = true
+}
+
+// AnalyzeDescription Scan a meal description.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodAnalysisService) AnalyzeDescription(ctx context.Context, request SearchFoodsByNaturalLanguageRequest) (*FoodScan, *Response, error) {
 	var result FoodScan
 	response, err := execute(ctx, c.service, opSearchFoodsByNaturalLanguage, request, &result)
@@ -152,7 +189,10 @@ func (c *FoodAnalysisService) AnalyzeDescription(ctx context.Context, request Se
 
 var opCorrectPhotoScan = operation{ID: "correctPhotoScan", Method: "POST", Path: "/v1.2/food-scans/corrections", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}}, BodyFields: []string{"meal_name", "detections", "user_input"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"meal_name\":{\"type\":\"string\"},\"detections\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodDetection\"}},\"user_input\":{\"type\":\"string\"}},\"required\":[\"detections\",\"user_input\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodScan\"}")}}
 
-// Correct executes correctPhotoScan without automatic retries.
+func init() { opCorrectPhotoScan.RetryNever = false; opCorrectPhotoScan.RetryAmbiguous = true }
+
+// Correct Correct a scan in plain English.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodAnalysisService) Correct(ctx context.Context, request CorrectPhotoScanRequest) (*FoodScan, *Response, error) {
 	var result FoodScan
 	response, err := execute(ctx, c.service, opCorrectPhotoScan, request, &result)
@@ -164,7 +204,10 @@ func (c *FoodAnalysisService) Correct(ctx context.Context, request CorrectPhotoS
 
 var opCreateFoodLog = operation{ID: "createFoodLog", Method: "POST", Path: "/v1.2/food-logs", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "x-end-user-timezone", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}}, BodyFields: []string{"foods", "timestamp_utc", "name"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"timestamp_utc\":{\"type\":\"string\",\"format\":\"date-time\"},\"name\":{\"type\":\"string\",\"maxLength\":256}},\"required\":[\"foods\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLog\"}")}}
 
-// Create executes createFoodLog without automatic retries.
+func init() { opCreateFoodLog.RetryNever = false; opCreateFoodLog.RetryAmbiguous = false }
+
+// Create Log foods for a user.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodLogsService) Create(ctx context.Context, request CreateFoodLogRequest) (*FoodLog, *Response, error) {
 	var result FoodLog
 	response, err := execute(ctx, c.service, opCreateFoodLog, request, &result)
@@ -176,7 +219,10 @@ func (c *FoodLogsService) Create(ctx context.Context, request CreateFoodLogReque
 
 var opListFoodLogs = operation{ID: "listFoodLogs", Method: "GET", Path: "/v1.2/food-logs", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "x-end-user-timezone", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}, {Name: "start", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"format\":\"date\",\"type\":\"string\"}")}, {Name: "end", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"format\":\"date\",\"type\":\"string\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/ListFoodLogsResponse\"}")}}
 
-// List executes listFoodLogs without automatic retries.
+func init() { opListFoodLogs.RetryNever = false; opListFoodLogs.RetryAmbiguous = true }
+
+// List List a user's food logs in a date range.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodLogsService) List(ctx context.Context, request ListFoodLogsRequest) (*ListFoodLogsResponse, *Response, error) {
 	var result ListFoodLogsResponse
 	response, err := execute(ctx, c.service, opListFoodLogs, request, &result)
@@ -188,7 +234,10 @@ func (c *FoodLogsService) List(ctx context.Context, request ListFoodLogsRequest)
 
 var opUpdateFoodLog = operation{ID: "updateFoodLog", Method: "PATCH", Path: "/v1.2/food-logs/{log_id}", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "x-end-user-timezone", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}, {Name: "log_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLogId\"}")}}, BodyFields: []string{"foods", "timestamp_utc", "name"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"timestamp_utc\":{\"type\":\"string\"},\"name\":{\"type\":\"string\",\"maxLength\":256}}}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLog\"}")}}
 
-// Update executes updateFoodLog without automatic retries.
+func init() { opUpdateFoodLog.RetryNever = false; opUpdateFoodLog.RetryAmbiguous = true }
+
+// Update Update a food log.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodLogsService) Update(ctx context.Context, request UpdateFoodLogRequest) (*FoodLog, *Response, error) {
 	var result FoodLog
 	response, err := execute(ctx, c.service, opUpdateFoodLog, request, &result)
@@ -200,7 +249,10 @@ func (c *FoodLogsService) Update(ctx context.Context, request UpdateFoodLogReque
 
 var opDeleteFoodLog = operation{ID: "deleteFoodLog", Method: "DELETE", Path: "/v1.2/food-logs/{log_id}", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "x-end-user-timezone", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}, {Name: "log_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLogId\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/DeleteFoodLogResponse\"}")}}
 
-// Delete executes deleteFoodLog without automatic retries.
+func init() { opDeleteFoodLog.RetryNever = false; opDeleteFoodLog.RetryAmbiguous = true }
+
+// Delete Delete a food log.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodLogsService) Delete(ctx context.Context, request DeleteFoodLogRequest) (*DeleteFoodLogResponse, *Response, error) {
 	var result DeleteFoodLogResponse
 	response, err := execute(ctx, c.service, opDeleteFoodLog, request, &result)
@@ -212,7 +264,10 @@ func (c *FoodLogsService) Delete(ctx context.Context, request DeleteFoodLogReque
 
 var opPredictGlucose = operation{ID: "predictGlucose", Method: "POST", Path: "/v1.2/glucose/predictions", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "x-end-user-timezone", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}}, BodyFields: []string{"user_profile", "foods", "start_time", "cgm_data", "consumed_foods"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"user_profile\":{\"$ref\":\"#/components/schemas/GlucosePredictionProfile\"},\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"start_time\":{\"type\":\"string\",\"format\":\"date-time\"},\"cgm_data\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/CgmReading\"}},\"consumed_foods\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/ConsumedHistoricalFood\"}}},\"required\":[\"user_profile\",\"foods\",\"start_time\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/GlucosePrediction\"}")}}
 
-// Predict executes predictGlucose without automatic retries.
+func init() { opPredictGlucose.RetryNever = false; opPredictGlucose.RetryAmbiguous = true }
+
+// Predict Predict the glucose response to a meal.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *GlucoseService) Predict(ctx context.Context, request PredictGlucoseRequest) (*GlucosePrediction, *Response, error) {
 	var result GlucosePrediction
 	response, err := execute(ctx, c.service, opPredictGlucose, request, &result)
@@ -224,7 +279,10 @@ func (c *GlucoseService) Predict(ctx context.Context, request PredictGlucoseRequ
 
 var opMintClientToken = operation{ID: "mintClientToken", Method: "POST", Path: "/v1.2/auth/client-tokens", Parameters: []parameter{}, BodyFields: []string{"end_user_id", "scopes", "ttl_seconds"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"end_user_id\":{\"type\":\"string\",\"maxLength\":64},\"scopes\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"foods:read\",\"food_scans:write\",\"food_logs:read\",\"food_logs:write\",\"glucose:read\",\"restaurants:read\"]}},\"ttl_seconds\":{\"type\":\"number\",\"minimum\":300,\"maximum\":7200}},\"required\":[\"end_user_id\"]}"), ResponseSchemas: map[int]json.RawMessage{201: json.RawMessage("{\"$ref\":\"#/components/schemas/ClientTokenResponseDto\"}")}}
 
-// MintClientToken executes mintClientToken without automatic retries.
+func init() { opMintClientToken.RetryNever = false; opMintClientToken.RetryAmbiguous = false }
+
+// MintClientToken Mint a client token.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *Client) MintClientToken(ctx context.Context, request MintClientTokenRequest) (*ClientTokenResponseDto, *Response, error) {
 	var result ClientTokenResponseDto
 	response, err := execute(ctx, service{transport: c.transport}, opMintClientToken, request, &result)
@@ -236,7 +294,10 @@ func (c *Client) MintClientToken(ctx context.Context, request MintClientTokenReq
 
 var opRevokeClientTokens = operation{ID: "revokeClientTokens", Method: "DELETE", Path: "/v1.2/auth/client-tokens", Parameters: []parameter{{Name: "end_user_id", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":64,\"type\":\"string\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{204: nil}}
 
-// RevokeClientTokens executes revokeClientTokens without automatic retries.
+func init() { opRevokeClientTokens.RetryNever = true; opRevokeClientTokens.RetryAmbiguous = true }
+
+// RevokeClientTokens Revoke an end user’s client tokens.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 // Exactly one DELETE. Response.RevokedCount exposes X-Revoked-Count.
 func (c *Client) RevokeClientTokens(ctx context.Context, request RevokeClientTokensRequest) (*Response, error) {
 	return execute(ctx, service{transport: c.transport}, opRevokeClientTokens, request, nil)
@@ -244,7 +305,10 @@ func (c *Client) RevokeClientTokens(ctx context.Context, request RevokeClientTok
 
 var opCredits = operation{ID: "credits", Method: "GET", Path: "/v1.2/credits", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/CreditsResponseDto\"}")}}
 
-// Credits executes credits without automatic retries.
+func init() { opCredits.RetryNever = false; opCredits.RetryAmbiguous = true }
+
+// Credits Get your credit balance.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *Client) Credits(ctx context.Context, requests ...CreditsRequest) (*CreditsResponseDto, *Response, error) {
 	var request CreditsRequest
 	if len(requests) > 1 {
@@ -337,6 +401,7 @@ func (c *Client) mintLegacy(ctx context.Context, input CreateClientTokenInput, p
 		request.TTLSeconds = Value(float64(*input.TTLSeconds))
 	}
 	op := opMintClientToken
+	op.RetryNever = true // Preserve the prototype issuer single-request behavior.
 	if pathOverride != "" {
 		op.Path = pathOverride
 	}

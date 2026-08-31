@@ -16,10 +16,12 @@ import (
 const maxResponseBytes = 16 << 20
 
 type transport struct {
-	secretKey  string
-	baseURL    string
-	httpClient *http.Client
-	timeout    time.Duration
+	secretKey       string
+	baseURL         string
+	httpClient      *http.Client
+	timeout         time.Duration
+	explicitTimeout bool
+	maxRetries      int
 }
 type userContext struct {
 	id       string
@@ -45,15 +47,15 @@ type operation struct {
 	RequiredBody    bool
 	BodySchema      json.RawMessage
 	ResponseSchemas map[int]json.RawMessage
+	RetryNever      bool
+	RetryAmbiguous  bool
 }
 
-// execute performs exactly one HTTP request. No retries, pagination, or revoke-all loops.
-func execute(ctx context.Context, s service, op operation, input any, output any) (*Response, error) {
+// executeOnce performs one HTTP request; execute owns the bounded retry loop.
+func executeOnce(ctx context.Context, s service, op operation, input any, output any) (*Response, error) {
 	if s.transport.secretKey == "" {
 		return nil, ErrNotConfigured
 	}
-	ctx, cancel := context.WithTimeout(ctx, s.transport.timeout)
-	defer cancel()
 	encoded, err := json.Marshal(input)
 	if err != nil {
 		return nil, &TransportError{Kind: "request encoding failed", Cause: err}
@@ -150,6 +152,14 @@ func execute(ctx context.Context, s service, op operation, input any, output any
 	}
 	metadata.Headers.Del("Authorization")
 	metadata.Headers.Del("Set-Cookie")
+	for key, values := range metadata.Headers {
+		for i, value := range values {
+			values[i] = redactDiagnostic(value, s.transport.secretKey)
+		}
+		metadata.Headers[key] = values
+	}
+	metadata.RequestID = redactDiagnostic(metadata.RequestID, s.transport.secretKey)
+	metadata.RetryAfter = redactDiagnostic(metadata.RetryAfter, s.transport.secretKey)
 	if v := response.Header.Get("X-Revoked-Count"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			metadata.RevokedCount = &n
@@ -173,8 +183,13 @@ func execute(ctx context.Context, s service, op operation, input any, output any
 		if metadata.RequestID == "" {
 			metadata.RequestID = wire.RequestID
 		}
-		redact := func(v string) string { return strings.ReplaceAll(v, s.transport.secretKey, "[REDACTED]") }
-		return metadata, &APIError{StatusCode: response.StatusCode, Code: redact(wire.Code), Message: redact(wire.Message), DocsURL: redact(wire.DocsURL), RequestID: redact(metadata.RequestID), Response: metadata}
+		redact := func(v string) string { return redactDiagnostic(v, s.transport.secretKey) }
+		metadata.RequestID = redact(metadata.RequestID)
+		message := redact(wire.Message)
+		if len(message) > 200 {
+			message = message[:200] + "... (truncated; see Body)"
+		}
+		return metadata, &APIError{StatusCode: response.StatusCode, Code: redact(wire.Code), Message: message, DocsURL: redact(wire.DocsURL), RequestID: metadata.RequestID, Response: metadata, Body: redact(string(b))}
 	}
 	if output != nil && response.StatusCode != http.StatusNoContent {
 		if err = validateResponseRequired(b, op.ResponseSchemas[response.StatusCode]); err != nil {

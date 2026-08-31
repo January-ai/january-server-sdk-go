@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -21,7 +22,7 @@ func offlineGoEnv() []string {
 	// Allowlist build infrastructure only: never inherit keys, proxy credentials,
 	// JANUARY_* settings, or other arbitrary environment variables.
 	env := []string{"GOWORK=off", "GOPROXY=off", "GOSUMDB=off", "GOTOOLCHAIN=local"}
-	for _, name := range []string{"PATH", "HOME", "TMPDIR", "GOCACHE", "GOPATH", "GOROOT"} {
+	for _, name := range []string{"PATH", "HOME", "USERPROFILE", "LOCALAPPDATA", "APPDATA", "SystemRoot", "TEMP", "TMP", "TMPDIR", "GOCACHE", "GOPATH", "GOROOT", "GOMODCACHE"} {
 		if value, ok := os.LookupEnv(name); ok {
 			env = append(env, name+"="+value)
 		}
@@ -53,6 +54,9 @@ func TestQuickstartExecutable(t *testing.T) {
 	}
 	installOfflineTransport(t, dir)
 	binary := filepath.Join(dir, "quickstart")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	build := exec.CommandContext(ctx, "go", "build", "-o", binary, filepath.Join(dir, "main.go"), filepath.Join(dir, "transport.go"))
 	build.Env = offlineGoEnv()
 	if output, err := build.CombinedOutput(); err != nil {

@@ -168,7 +168,7 @@ func TestAll18ContractFixtures(t *testing.T) {
 		})
 	}
 }
-func TestErrorFixturesAndNoRetries(t *testing.T) {
+func TestErrorFixturesWithRetriesDisabled(t *testing.T) {
 	for _, fixture := range fixtures(t).Errors {
 		t.Run(fmt.Sprint(fixture.Status), func(t *testing.T) {
 			var count atomic.Int32
@@ -181,7 +181,7 @@ func TestErrorFixturesAndNoRetries(t *testing.T) {
 				_, _ = w.Write(fixture.Body)
 			}))
 			defer server.Close()
-			c, _ := NewClient(Config{SecretKey: "sk-test", BaseURL: server.URL})
+			c, _ := NewClient(Config{SecretKey: "sk-test", BaseURL: server.URL, MaxRetries: Value(0)})
 			_, metadata, err := c.Credits(context.Background())
 			var apiErr *APIError
 			if !errors.As(err, &apiErr) {
