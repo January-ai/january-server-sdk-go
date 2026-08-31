@@ -35,13 +35,21 @@ func NewClient(config Config) (*Client, error) {
 	if timeout < 0 {
 		return nil, fmt.Errorf("%w: Timeout must be positive", ErrNotConfigured)
 	}
+	retries := 2
+	if config.MaxRetries.IsSet() {
+		var ok bool
+		retries, ok = config.MaxRetries.Get()
+		if !ok || retries < 0 || retries > 100 {
+			return nil, fmt.Errorf("%w: MaxRetries must be between 0 and 100", ErrNotConfigured)
+		}
+	}
 	hc := http.Client{}
 	if config.HTTPClient != nil {
 		hc = *config.HTTPClient
 	}
 	// Do not forward credentials through redirects. Never mutate an injected client.
 	hc.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	t := &transport{secretKey: key, baseURL: strings.TrimRight(baseURL, "/"), httpClient: &hc, timeout: timeout}
+	t := &transport{secretKey: key, baseURL: strings.TrimRight(baseURL, "/"), httpClient: &hc, timeout: timeout, explicitTimeout: config.Timeout != 0, maxRetries: retries}
 	c := newGeneratedClient(t)
 	c.ClientTokens = &ClientTokensService{client: c, issuer: config.ClientTokenIssuer}
 	if config.ClientTokenPath != "" {

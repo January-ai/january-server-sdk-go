@@ -136,8 +136,9 @@ func run(stdout, stderr io.Writer) int {
 		return 1
 	}
 	client, err := january.NewClient(january.Config{
-		SecretKey: key,
-		Timeout:   30 * time.Second,
+		SecretKey:  key,
+		Timeout:    30 * time.Second,
+		MaxRetries: january.Value(0), // Keep this diagnostic example single-attempt.
 	})
 	if err != nil {
 		fmt.Fprintln(stderr, "Invalid January client configuration. Use a server sk- API key, not a ct- client token.")
@@ -326,10 +327,9 @@ existing environment values, then passes `JANUARY_API_KEY` explicitly to the SDK
   preserves explicit null. Validation permits null only where the contract allows it.
 - `IsSet`, `IsNull`, `Get` distinguish absent/uncapped values from zero. Unknown response fields
   are ignored; unknown response enum values are accepted. Dates remain wire-format strings.
-- Default timeout is 30 seconds for the entire call; configure `Config.Timeout` and pass a shorter
+- Default timeout is 30 seconds (120 for photo/description analysis and correction) for the entire call; configure `Config.Timeout` and pass a shorter
   context deadline when needed. Cancellation is preserved through `errors.Is`.
-- **No automatic retries**, pagination, or idempotency behavior. Decide explicitly at the application
-  layer whether a failed operation is safe to repeat; ambiguous writes may already have succeeded.
+- Two bounded retries by default, using stable API error codes and `Retry-After` (up to 60 seconds per wait and total server-requested waiting). Set `MaxRetries: january.Value(0)` to disable. Credit exhaustion and permanent errors are never retried. Token creation and food-log creation are not replayed after ambiguous failures; revocation always makes one request. Retried analysis can consume additional credits. No automatic pagination or revoke-all loops. See [photos, errors and retries](docs/images-and-errors.md).
 - Production requests use the SDK's built-in HTTPS endpoint. Redirects are not followed.
 - Per-call `Response` includes status, cloned headers, request ID, Retry-After, and revoked count.
 - Inspect `*january.APIError` with `errors.As` for status, code, message, docs URL, and request ID.
@@ -345,7 +345,7 @@ existing environment values, then passes `JANUARY_API_KEY` explicitly to the SDK
 | Unable to load `.env`; no HTTP status | Check the working directory's file permissions and `KEY=value` syntax. Do not share the file or its contents. |
 | HTTP 401 | Check that the full key is active and belongs to the intended organization; a dashboard login is not an API credential. |
 | HTTP 403 | Check organization access and key permissions. For token minting only, check **Enable client tokens**; enabling it is not required for server food search. |
-| HTTP 429, `rate_limited` | Reduce request frequency and wait before an explicit retry; the SDK does not retry automatically. |
+| HTTP 429, `rate_limited` | Default clients retry within configured limits. The quickstart and production test runner explicitly disable retries. |
 | HTTP 429, `credit_limit_exceeded` | Check [Billing](https://dashboard.january.ai/billing) for the current plan/allowance; root `Credits` reads the balance. Do not repeatedly retry the request. |
 | Transport timeout; no HTTP status | Check connectivity. Review the 30-second deadline before explicitly trying again. |
 

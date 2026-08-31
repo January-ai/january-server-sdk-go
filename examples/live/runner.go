@@ -299,7 +299,7 @@ func runWorkflow(ctx context.Context, c config, emit func(result), newClient fun
 	r := runner{ctx: ctx, cfg: c, report: newReport(), emit: emit, owned: map[string]bool{}, started: time.Now().UTC()}
 	id, err := freshUserID()
 	if err == nil {
-		r.client, err = newClient(january.Config{SecretKey: c.key, Timeout: c.timeout})
+		r.client, err = newClient(january.Config{SecretKey: c.key, Timeout: c.timeout, MaxRetries: january.Value(0)})
 	}
 	if err == nil {
 		r.user, err = r.client.ForUser(id, "UTC")

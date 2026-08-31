@@ -29,8 +29,9 @@ func run(stdout, stderr io.Writer) int {
 		return 1
 	}
 	client, err := january.NewClient(january.Config{
-		SecretKey: key,
-		Timeout:   30 * time.Second,
+		SecretKey:  key,
+		Timeout:    30 * time.Second,
+		MaxRetries: january.Value(0), // Keep this diagnostic example single-attempt.
 	})
 	if err != nil {
 		fmt.Fprintln(stderr, "Invalid January client configuration. Use a server sk- API key, not a ct- client token.")

@@ -7,7 +7,16 @@ jobs:
     strategy:
       matrix:
         go: ['1.26.x', '1.27.x']
-    runs-on: ubuntu-latest
+        os: [ubuntu-latest]
+        include:
+          - os: macos-latest
+            go: '1.26.x'
+          - os: windows-latest
+            go: '1.26.x'
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -20,6 +29,8 @@ jobs:
         run: go test -race ./...
       - name: Build module
         run: go build ./...
+      - name: Vet
+        run: go vet ./...
       - name: Token server example tests
         working-directory: examples/go
         run: go test -race -v .
@@ -29,5 +40,4 @@ jobs:
       - name: Install and run local HTTP consumer
         working-directory: examples/local-http
         run: |
-          GOBIN="$RUNNER_TEMP" go install .
-          "$RUNNER_TEMP/january-local-http-consumer"
+          go run .

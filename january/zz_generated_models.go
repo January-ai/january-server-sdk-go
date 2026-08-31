@@ -15,8 +15,9 @@ const (
 
 // AlternativeFood is generated from the January contract.
 type AlternativeFood struct {
-	ID        Optional[FoodID]               `json:"id"`
-	Name      string                         `json:"name"`
+	ID   Optional[FoodID] `json:"id"`
+	Name string           `json:"name"`
+	// BrandName: Empty for generic (non-branded) foods.
 	BrandName Optional[string]               `json:"brand_name"`
 	Nutrients CompleteScanNutritionFacts     `json:"nutrients"`
 	Servings  Optional[[]AlternativeServing] `json:"servings"`
@@ -53,8 +54,11 @@ func (v AlternativeServing) GoString() string { return v.String() }
 
 // APIErrorDto is generated from the January contract.
 type APIErrorDto struct {
+	// Message: A developer-facing explanation of what went wrong and how to fix it.
 	Message string `json:"message"`
-	Code    string `json:"code"`
+	// Code: A stable machine-readable identifier for the class of failure — build retry logic on this, never on message wording. Current values: invalid_request, unauthorized, forbidden, not_found, not_implemented, payload_too_large, rate_limited, internal_error, upstream_error, service_unavailable, upstream_timeout. Only rate_limited, internal_error, upstream_error, service_unavailable, and upstream_timeout are safe to retry (with backoff) — not_implemented is permanent until the feature ships. New codes may be added over time; treat an unknown code according to its HTTP status class.
+	Code string `json:"code"`
+	// DocsURL: Link to the developer documentation.
 	DocsURL string `json:"docs_url"`
 }
 
@@ -101,6 +105,7 @@ func (v AutocompleteFoodsRequest) GoString() string { return v.String() }
 
 // AutocompleteFoodsResponse is generated from the January contract.
 type AutocompleteFoodsResponse struct {
+	// Items: Ranked suggestions, generic foods before branded. Empty when nothing matches.
 	Items []FoodSuggestion `json:"items"`
 }
 
@@ -119,8 +124,9 @@ type Barcode = string
 
 // CGMReading is generated from the January contract.
 type CGMReading struct {
-	Timestamp string  `json:"timestamp"`
-	Value     float64 `json:"value"`
+	Timestamp string `json:"timestamp"`
+	// Value: mg/dL. At most one reading per 15-minute window.
+	Value float64 `json:"value"`
 }
 
 func (v CGMReading) MarshalJSON() ([]byte, error) {
@@ -134,11 +140,16 @@ func (v CGMReading) GoString() string { return v.String() }
 
 // ClientTokenResponseDto is generated from the January contract.
 type ClientTokenResponseDto struct {
-	Token     string   `json:"token"`
-	ExpiresIn float64  `json:"expires_in"`
-	ExpiresAt string   `json:"expires_at"`
-	EndUserID string   `json:"end_user_id"`
-	Scopes    []string `json:"scopes"`
+	// Token: The credential itself. Shown exactly once — it is stored only as a hash and can never be retrieved again.
+	Token string `json:"token"`
+	// ExpiresIn: Seconds until the token expires, counted from the moment this response was produced. Compute expiry from this rather than from `expires_at` — a device clock that is wrong makes an absolute timestamp wrong with it.
+	ExpiresIn float64 `json:"expires_in"`
+	// ExpiresAt: The same expiry as an absolute UTC instant, for logs and humans.
+	ExpiresAt string `json:"expires_at"`
+	// EndUserID: The end user this token is bound to, echoed back so a caller can assert it minted what it meant to.
+	EndUserID string `json:"end_user_id"`
+	// Scopes: What this token may do — the scopes granted, whether requested explicitly or defaulted.
+	Scopes []string `json:"scopes"`
 }
 
 func (v ClientTokenResponseDto) MarshalJSON() ([]byte, error) {
@@ -214,9 +225,12 @@ func (v ConsumedHistoricalFood) GoString() string { return v.String() }
 
 // CorrectPhotoScanBody is generated from the January contract.
 type CorrectPhotoScanBody struct {
-	MealName   Optional[string] `json:"meal_name"`
-	Detections []FoodDetection  `json:"detections"`
-	UserInput  string           `json:"user_input"`
+	// MealName: The meal name from the scan, when it returned one (photo scans do; text scans don't). Defaults to 'Meal'.
+	MealName Optional[string] `json:"meal_name"`
+	// Detections: The detections array from a photo or text food scan, exactly as returned. Omitted zero-value nutrient keys are filled in automatically; each detection needs at least one serving.
+	Detections []FoodDetection `json:"detections"`
+	// UserInput: Plain-English description of what to correct.
+	UserInput string `json:"user_input"`
 }
 
 func (v CorrectPhotoScanBody) MarshalJSON() ([]byte, error) {
@@ -231,10 +245,13 @@ func (v CorrectPhotoScanBody) GoString() string { return v.String() }
 
 // CorrectPhotoScanRequest is generated from the January contract.
 type CorrectPhotoScanRequest struct {
-	EndUserID  string           `json:"x-end-user-id,omitempty"`
-	MealName   Optional[string] `json:"meal_name"`
-	Detections []FoodDetection  `json:"detections"`
-	UserInput  string           `json:"user_input"`
+	EndUserID string `json:"x-end-user-id,omitempty"`
+	// MealName: The meal name from the scan, when it returned one (photo scans do; text scans don't). Defaults to 'Meal'.
+	MealName Optional[string] `json:"meal_name"`
+	// Detections: The detections array from a photo or text food scan, exactly as returned. Omitted zero-value nutrient keys are filled in automatically; each detection needs at least one serving.
+	Detections []FoodDetection `json:"detections"`
+	// UserInput: Plain-English description of what to correct.
+	UserInput string `json:"user_input"`
 }
 
 func (v CorrectPhotoScanRequest) MarshalJSON() ([]byte, error) {
@@ -254,9 +271,12 @@ func (v CorrectPhotoScanRequest) GoString() string { return v.String() }
 
 // CreateClientTokenDto is generated from the January contract.
 type CreateClientTokenDto struct {
-	EndUserID  string             `json:"end_user_id"`
-	Scopes     Optional[[]string] `json:"scopes"`
-	TTLSeconds Optional[float64]  `json:"ttl_seconds"`
+	// EndUserID: Your stable ID for the end user this token acts as. The token is bound to it; requests made with the token act only on this user.
+	EndUserID string `json:"end_user_id"`
+	// Scopes: What the token may do. Omit to grant the full client-grantable set (foods:read, food_scans:write, food_logs:read, food_logs:write, glucose:read, restaurants:read). Grant only what the screen needs.
+	Scopes Optional[[]string] `json:"scopes"`
+	// TTLSeconds: How long the token stays valid, in seconds. Between 300 and 7200; defaults to 1800.
+	TTLSeconds Optional[float64] `json:"ttl_seconds"`
 }
 
 func (v CreateClientTokenDto) MarshalJSON() ([]byte, error) {
@@ -271,9 +291,10 @@ func (v CreateClientTokenDto) GoString() string { return v.String() }
 
 // CreateFoodLogBody is generated from the January contract.
 type CreateFoodLogBody struct {
-	Foods        []FoodLogInputFood `json:"foods"`
-	TimestampUTC Optional[string]   `json:"timestamp_utc"`
-	Name         Optional[string]   `json:"name"`
+	Foods []FoodLogInputFood `json:"foods"`
+	// TimestampUTC: When the meal was eaten — any ISO-8601 offset; stored and returned in UTC. Omitted = now.
+	TimestampUTC Optional[string] `json:"timestamp_utc"`
+	Name         Optional[string] `json:"name"`
 }
 
 func (v CreateFoodLogBody) MarshalJSON() ([]byte, error) {
@@ -291,8 +312,9 @@ type CreateFoodLogRequest struct {
 	EndUserID       string             `json:"x-end-user-id,omitempty"`
 	EndUserTimezone string             `json:"x-end-user-timezone,omitempty"`
 	Foods           []FoodLogInputFood `json:"foods"`
-	TimestampUTC    Optional[string]   `json:"timestamp_utc"`
-	Name            Optional[string]   `json:"name"`
+	// TimestampUTC: When the meal was eaten — any ISO-8601 offset; stored and returned in UTC. Omitted = now.
+	TimestampUTC Optional[string] `json:"timestamp_utc"`
+	Name         Optional[string] `json:"name"`
 }
 
 func (v CreateFoodLogRequest) MarshalJSON() ([]byte, error) {
@@ -328,12 +350,19 @@ func (v CreditsRequest) GoString() string { return v.String() }
 
 // CreditsResponseDto is generated from the January contract.
 type CreditsResponseDto struct {
-	Plan             string            `json:"plan"`
-	PeriodStart      string            `json:"period_start"`
-	PeriodEnd        string            `json:"period_end"`
-	ResetsAt         string            `json:"resets_at"`
-	IncludedCredits  Optional[float64] `json:"included_credits"`
-	UsedCredits      float64           `json:"used_credits"`
+	// Plan: The plan this allowance comes from.
+	Plan string `json:"plan"`
+	// PeriodStart: First day of the current billing period (UTC), inclusive.
+	PeriodStart string `json:"period_start"`
+	// PeriodEnd: Last day of the current billing period (UTC), inclusive.
+	PeriodEnd string `json:"period_end"`
+	// ResetsAt: When the allowance resets and `used_credits` returns to 0.
+	ResetsAt string `json:"resets_at"`
+	// IncludedCredits: Credits included in the plan for this period. Absent when the plan has no ceiling.
+	IncludedCredits Optional[float64] `json:"included_credits"`
+	// UsedCredits: Credits used so far this period. One successful v1.2 API call costs 1 credit; failed calls cost nothing.
+	UsedCredits float64 `json:"used_credits"`
+	// RemainingCredits: Credits left in this period. Absent when the plan has no ceiling.
 	RemainingCredits Optional[float64] `json:"remaining_credits"`
 }
 
@@ -374,6 +403,7 @@ func (v DeleteFoodLogRequest) GoString() string { return v.String() }
 
 // DeleteFoodLogResponse is generated from the January contract.
 type DeleteFoodLogResponse struct {
+	// Status: Deletion is idempotent — an unknown or already-deleted log_id returns the same response.
 	Status string `json:"status"`
 }
 
@@ -387,11 +417,13 @@ func (v DeleteFoodLogResponse) GoString() string { return v.String() }
 
 // DetectedFood is generated from the January contract.
 type DetectedFood struct {
-	ID        Optional[FoodID]           `json:"id"`
-	Name      string                     `json:"name"`
+	ID   Optional[FoodID] `json:"id"`
+	Name string           `json:"name"`
+	// BrandName: Empty for generic (non-branded) foods.
 	BrandName Optional[string]           `json:"brand_name"`
 	Nutrients CompleteScanNutritionFacts `json:"nutrients"`
-	Servings  []DetectedServing          `json:"servings"`
+	// Servings: Never empty: every detection producer guarantees at least one serving.
+	Servings []DetectedServing `json:"servings"`
 }
 
 func (v DetectedFood) MarshalJSON() ([]byte, error) {
@@ -408,9 +440,10 @@ func (v DetectedFood) GoString() string { return v.String() }
 
 // DetectedServing is generated from the January contract.
 type DetectedServing struct {
-	ID               ServingID         `json:"id"`
-	Quantity         Optional[float64] `json:"quantity"`
-	Unit             string            `json:"unit"`
+	ID       ServingID         `json:"id"`
+	Quantity Optional[float64] `json:"quantity"`
+	Unit     string            `json:"unit"`
+	// SelectedQuantity: Quantity the parser selected from the text ('2 cups' → 2); text scans only. Advisory — corrections reads the serving's own quantity.
 	SelectedQuantity Optional[float64] `json:"selected_quantity"`
 }
 
@@ -465,8 +498,11 @@ const (
 
 // ErrorResponse is generated from the January contract.
 type ErrorResponse struct {
+	// Message: A developer-facing explanation of what went wrong and how to fix it.
 	Message string `json:"message"`
-	Code    string `json:"code"`
+	// Code: A stable machine-readable identifier for the class of failure — build retry logic on this, never on message wording. Current values: invalid_request, unauthorized, forbidden, not_found, not_implemented, payload_too_large, rate_limited, internal_error, upstream_error, service_unavailable, upstream_timeout. Only rate_limited, internal_error, upstream_error, service_unavailable, and upstream_timeout are safe to retry (with backoff) — not_implemented is permanent until the feature ships. New codes may be added over time; treat an unknown code according to its HTTP status class.
+	Code string `json:"code"`
+	// DocsURL: Link to the developer documentation for this API version.
 	DocsURL string `json:"docs_url"`
 }
 
@@ -522,8 +558,9 @@ type FoodID = int64
 
 // FoodLog is generated from the January contract.
 type FoodLog struct {
-	ID           FoodLogID        `json:"id"`
-	Foods        []LoggedFood     `json:"foods"`
+	ID    FoodLogID    `json:"id"`
+	Foods []LoggedFood `json:"foods"`
+	// TimestampUTC: Returned UTC timestamp. Treat as an opaque string because deployed responses are not consistently RFC 3339 formatted.
 	TimestampUTC string           `json:"timestamp_utc"`
 	Name         Optional[string] `json:"name"`
 }
@@ -559,8 +596,9 @@ func (v FoodLogInputFood) GoString() string { return v.String() }
 
 // FoodLogInputServing is generated from the January contract.
 type FoodLogInputServing struct {
-	ID       ServingID `json:"id"`
-	Quantity float64   `json:"quantity"`
+	ID ServingID `json:"id"`
+	// Quantity: How many of that serving were consumed.
+	Quantity float64 `json:"quantity"`
 }
 
 func (v FoodLogInputServing) MarshalJSON() ([]byte, error) {
@@ -574,9 +612,11 @@ func (v FoodLogInputServing) GoString() string { return v.String() }
 
 // FoodScan is generated from the January contract.
 type FoodScan struct {
-	MealName       Optional[string]                     `json:"meal_name"`
+	MealName Optional[string] `json:"meal_name"`
+	// TotalNutrients: Aggregated nutrition across all detections.
 	TotalNutrients Optional[CompleteScanNutritionFacts] `json:"total_nutrients"`
-	Detections     []FoodDetection                      `json:"detections"`
+	// Detections: Detected foods. Always present — an empty array means nothing was recognized.
+	Detections []FoodDetection `json:"detections"`
 }
 
 func (v FoodScan) MarshalJSON() ([]byte, error) {
@@ -591,15 +631,21 @@ func (v FoodScan) GoString() string { return v.String() }
 
 // FoodSearchItem is generated from the January contract.
 type FoodSearchItem struct {
-	ID            FoodID            `json:"id"`
-	Name          string            `json:"name"`
-	BrandName     Optional[string]  `json:"brand_name"`
-	Nutrients     NutritionFacts    `json:"nutrients"`
+	ID   FoodID `json:"id"`
+	Name string `json:"name"`
+	// BrandName: Absent for generic (non-branded) foods.
+	BrandName Optional[string] `json:"brand_name"`
+	// Nutrients: Per-serving nutrition in the shared nutrient vocabulary. Keys are omitted when the database has no value.
+	Nutrients NutritionFacts `json:"nutrients"`
+	// GlycemicIndex: Glycemic index.
 	GlycemicIndex Optional[float64] `json:"glycemic_index"`
-	GlycemicLoad  Optional[float64] `json:"glycemic_load"`
-	ImageURL      Optional[string]  `json:"image_url"`
-	UPC           Optional[string]  `json:"upc"`
-	Servings      []ServingOption   `json:"servings"`
+	// GlycemicLoad: Glycemic load.
+	GlycemicLoad Optional[float64] `json:"glycemic_load"`
+	// ImageURL: URL of a picture of the food, when the database has one.
+	ImageURL Optional[string] `json:"image_url"`
+	// UPC: The product's barcode, for branded foods that have one.
+	UPC      Optional[string] `json:"upc"`
+	Servings []ServingOption  `json:"servings"`
 }
 
 func (v FoodSearchItem) MarshalJSON() ([]byte, error) {
@@ -620,6 +666,7 @@ func (v FoodSearchItem) GoString() string { return v.String() }
 
 // FoodSearchResults is generated from the January contract.
 type FoodSearchResults struct {
+	// TotalCount: Total number of matches in the database; may exceed the number of items returned.
 	TotalCount float64          `json:"total_count"`
 	Items      []FoodSearchItem `json:"items"`
 }
@@ -635,10 +682,14 @@ func (v FoodSearchResults) GoString() string { return v.String() }
 
 // FoodSuggestion is generated from the January contract.
 type FoodSuggestion struct {
-	ID        FoodID                   `json:"id"`
-	Name      string                   `json:"name"`
-	BrandName Optional[string]         `json:"brand_name"`
-	ImageURL  Optional[string]         `json:"image_url"`
+	ID FoodID `json:"id"`
+	// Name: Generic foods are lowercase; branded foods keep their product name.
+	Name string `json:"name"`
+	// BrandName: Absent for generic (non-branded) foods.
+	BrandName Optional[string] `json:"brand_name"`
+	// ImageURL: Thumbnail of the food, when the database has one.
+	ImageURL Optional[string] `json:"image_url"`
+	// Nutrients: Calories per default serving, in the shared nutrient vocabulary — the one nutrient a suggestion carries. Fetch the food for the full panel.
 	Nutrients Optional[NutritionFacts] `json:"nutrients"`
 }
 
@@ -673,7 +724,9 @@ func (v GetFoodRequest) GoString() string { return v.String() }
 
 // GlucoseChart is generated from the January contract.
 type GlucoseChart struct {
+	// Min: Suggested Y-axis lower bound (mg/dL). A fixed target-range bound, not the minimum of the curve.
 	Min float64 `json:"min"`
+	// Max: Suggested Y-axis upper bound (mg/dL): 180 with Type 2 diabetes in health_conditions, otherwise 140. Not the maximum of the curve.
 	Max float64 `json:"max"`
 }
 
@@ -697,6 +750,7 @@ const (
 
 // GlucosePrediction is generated from the January contract.
 type GlucosePrediction struct {
+	// Prediction: The predicted glucose curve at 15-minute intervals, starting at start_time.
 	Prediction  []GlucosePredictionPoint `json:"prediction"`
 	ImpactScore GlucoseImpact            `json:"impact_score"`
 	Chart       GlucoseChart             `json:"chart"`
@@ -714,8 +768,10 @@ func (v GlucosePrediction) GoString() string { return v.String() }
 
 // GlucosePredictionPoint is generated from the January contract.
 type GlucosePredictionPoint struct {
+	// Minutes: Minutes after start_time.
 	Minutes float64 `json:"minutes"`
-	Value   float64 `json:"value"`
+	// Value: Predicted glucose, mg/dL.
+	Value float64 `json:"value"`
 }
 
 func (v GlucosePredictionPoint) MarshalJSON() ([]byte, error) {
@@ -729,11 +785,12 @@ func (v GlucosePredictionPoint) GoString() string { return v.String() }
 
 // GlucosePredictionProfile is generated from the January contract.
 type GlucosePredictionProfile struct {
-	Age              float64                      `json:"age"`
-	Sex              Sex                          `json:"sex"`
-	Height           Height                       `json:"height"`
-	Weight           Weight                       `json:"weight"`
-	ActivityLevel    Optional[ActivityLevel]      `json:"activity_level"`
+	Age           float64                 `json:"age"`
+	Sex           Sex                     `json:"sex"`
+	Height        Height                  `json:"height"`
+	Weight        Weight                  `json:"weight"`
+	ActivityLevel Optional[ActivityLevel] `json:"activity_level"`
+	// HealthConditions: Omit it (or send []) if none apply. Type 1 diabetes is not supported by the prediction model.
 	HealthConditions Optional[[]MedicalCondition] `json:"health_conditions"`
 }
 
@@ -800,8 +857,9 @@ func (v ListFoodLogsRequest) GoString() string { return v.String() }
 
 // ListFoodLogsResponse is generated from the January contract.
 type ListFoodLogsResponse struct {
-	TotalCount float64   `json:"total_count"`
-	Items      []FoodLog `json:"items"`
+	TotalCount float64 `json:"total_count"`
+	// Items: Logs in the range, ordered by timestamp. An empty list is a valid result.
+	Items []FoodLog `json:"items"`
 }
 
 func (v ListFoodLogsResponse) MarshalJSON() ([]byte, error) {
@@ -815,15 +873,18 @@ func (v ListFoodLogsResponse) GoString() string { return v.String() }
 
 // LoggedFood is generated from the January contract.
 type LoggedFood struct {
-	ID              FoodID              `json:"id"`
-	Name            string              `json:"name"`
-	BrandName       Optional[string]    `json:"brand_name"`
-	ImageURL        Optional[string]    `json:"image_url"`
-	GlycemicIndex   Optional[float64]   `json:"glycemic_index"`
-	GlycemicLoad    Optional[float64]   `json:"glycemic_load"`
-	Nutrients       NutritionFacts      `json:"nutrients"`
+	ID            FoodID            `json:"id"`
+	Name          string            `json:"name"`
+	BrandName     Optional[string]  `json:"brand_name"`
+	ImageURL      Optional[string]  `json:"image_url"`
+	GlycemicIndex Optional[float64] `json:"glycemic_index"`
+	GlycemicLoad  Optional[float64] `json:"glycemic_load"`
+	// Nutrients: Scaled to the consumed serving.
+	Nutrients NutritionFacts `json:"nutrients"`
+	// ConsumedServing: What was logged.
 	ConsumedServing FoodLogInputServing `json:"consumed_serving"`
-	ServingDetails  ServingDetails      `json:"serving_details"`
+	// ServingDetails: The serving definition the quantity refers to.
+	ServingDetails ServingDetails `json:"serving_details"`
 }
 
 func (v LoggedFood) MarshalJSON() ([]byte, error) {
@@ -871,9 +932,12 @@ const (
 
 // MintClientTokenRequest is generated from the January contract.
 type MintClientTokenRequest struct {
-	EndUserID  string             `json:"end_user_id"`
-	Scopes     Optional[[]string] `json:"scopes"`
-	TTLSeconds Optional[float64]  `json:"ttl_seconds"`
+	// EndUserID: Your stable ID for the end user this token acts as. The token is bound to it; requests made with the token act only on this user.
+	EndUserID string `json:"end_user_id"`
+	// Scopes: What the token may do. Omit to grant the full client-grantable set (foods:read, food_scans:write, food_logs:read, food_logs:write, glucose:read, restaurants:read). Grant only what the screen needs.
+	Scopes Optional[[]string] `json:"scopes"`
+	// TTLSeconds: How long the token stays valid, in seconds. Between 300 and 7200; defaults to 1800.
+	TTLSeconds Optional[float64] `json:"ttl_seconds"`
 }
 
 func (v MintClientTokenRequest) MarshalJSON() ([]byte, error) {
@@ -915,10 +979,12 @@ type NutritionFacts struct {
 	AddedSugars      Optional[NutrientAmount] `json:"added_sugars"`
 	Cholesterol      Optional[NutrientAmount] `json:"cholesterol"`
 	Calcium          Optional[NutrientAmount] `json:"calcium"`
-	Iron             Optional[NutrientAmount] `json:"iron"`
-	Potassium        Optional[NutrientAmount] `json:"potassium"`
-	Sodium           Optional[NutrientAmount] `json:"sodium"`
-	VitaminD         Optional[NutrientAmount] `json:"vitamin_d"`
+	// Iron: Unit: mcg.
+	Iron      Optional[NutrientAmount] `json:"iron"`
+	Potassium Optional[NutrientAmount] `json:"potassium"`
+	Sodium    Optional[NutrientAmount] `json:"sodium"`
+	// VitaminD: Unit: IU.
+	VitaminD Optional[NutrientAmount] `json:"vitamin_d"`
 }
 
 func (v NutritionFacts) MarshalJSON() ([]byte, error) {
@@ -949,10 +1015,14 @@ type PartnerUserID = string
 
 // PredictGlucoseBody is generated from the January contract.
 type PredictGlucoseBody struct {
-	UserProfile   GlucosePredictionProfile           `json:"user_profile"`
-	Foods         []FoodLogInputFood                 `json:"foods"`
-	StartTime     string                             `json:"start_time"`
-	CGMData       Optional[[]CGMReading]             `json:"cgm_data"`
+	UserProfile GlucosePredictionProfile `json:"user_profile"`
+	// Foods: The meal to predict the glucose response for.
+	Foods []FoodLogInputFood `json:"foods"`
+	// StartTime: When the meal is (or will be) eaten. Must carry a timezone designator.
+	StartTime string `json:"start_time"`
+	// CGMData: Optional CGM history for personalization; requires consumed_foods.
+	CGMData Optional[[]CGMReading] `json:"cgm_data"`
+	// ConsumedFoods: The meals eaten during the CGM history; requires cgm_data.
 	ConsumedFoods Optional[[]ConsumedHistoricalFood] `json:"consumed_foods"`
 }
 
@@ -970,13 +1040,17 @@ func (v PredictGlucoseBody) GoString() string { return v.String() }
 
 // PredictGlucoseRequest is generated from the January contract.
 type PredictGlucoseRequest struct {
-	EndUserID       string                             `json:"x-end-user-id,omitempty"`
-	EndUserTimezone string                             `json:"x-end-user-timezone,omitempty"`
-	UserProfile     GlucosePredictionProfile           `json:"user_profile"`
-	Foods           []FoodLogInputFood                 `json:"foods"`
-	StartTime       string                             `json:"start_time"`
-	CGMData         Optional[[]CGMReading]             `json:"cgm_data"`
-	ConsumedFoods   Optional[[]ConsumedHistoricalFood] `json:"consumed_foods"`
+	EndUserID       string                   `json:"x-end-user-id,omitempty"`
+	EndUserTimezone string                   `json:"x-end-user-timezone,omitempty"`
+	UserProfile     GlucosePredictionProfile `json:"user_profile"`
+	// Foods: The meal to predict the glucose response for.
+	Foods []FoodLogInputFood `json:"foods"`
+	// StartTime: When the meal is (or will be) eaten. Must carry a timezone designator.
+	StartTime string `json:"start_time"`
+	// CGMData: Optional CGM history for personalization; requires consumed_foods.
+	CGMData Optional[[]CGMReading] `json:"cgm_data"`
+	// ConsumedFoods: The meals eaten during the CGM history; requires cgm_data.
+	ConsumedFoods Optional[[]ConsumedHistoricalFood] `json:"consumed_foods"`
 }
 
 func (v PredictGlucoseRequest) MarshalJSON() ([]byte, error) {
@@ -999,10 +1073,12 @@ func (v PredictGlucoseRequest) GoString() string { return v.String() }
 
 // Restaurant is generated from the January contract.
 type Restaurant struct {
-	Type     string            `json:"type"`
-	ID       string            `json:"id"`
-	Name     string            `json:"name"`
-	IsChain  Optional[bool]    `json:"is_chain"`
+	// Type: When coordinates are provided and the name matches no restaurant, results may be menu items instead.
+	Type    string         `json:"type"`
+	ID      string         `json:"id"`
+	Name    string         `json:"name"`
+	IsChain Optional[bool] `json:"is_chain"`
+	// Distance: Distance from (latitude, longitude) in meters; present only when coordinates were provided.
 	Distance Optional[float64] `json:"distance"`
 	City     Optional[string]  `json:"city"`
 	Address1 Optional[string]  `json:"address1"`
@@ -1026,17 +1102,22 @@ func (v Restaurant) GoString() string { return v.String() }
 
 // RestaurantMenuItem is generated from the January contract.
 type RestaurantMenuItem struct {
-	Type           string                   `json:"type"`
-	ID             RestaurantMenuItemID     `json:"id"`
-	Name           string                   `json:"name"`
-	RestaurantName string                   `json:"restaurant_name"`
-	IsChain        Optional[bool]           `json:"is_chain"`
-	Nutrients      Optional[NutritionFacts] `json:"nutrients"`
-	GlycemicIndex  Optional[float64]        `json:"glycemic_index"`
-	GlycemicLoad   Optional[float64]        `json:"glycemic_load"`
-	ImageURL       Optional[string]         `json:"image_url"`
-	Distance       Optional[float64]        `json:"distance"`
-	Servings       []ServingOption          `json:"servings"`
+	Type           string               `json:"type"`
+	ID             RestaurantMenuItemID `json:"id"`
+	Name           string               `json:"name"`
+	RestaurantName string               `json:"restaurant_name"`
+	IsChain        Optional[bool]       `json:"is_chain"`
+	// Nutrients: Per-dish nutrition in the shared nutrient vocabulary. Keys are omitted when the menu source has no value.
+	Nutrients Optional[NutritionFacts] `json:"nutrients"`
+	// GlycemicIndex: Glycemic index.
+	GlycemicIndex Optional[float64] `json:"glycemic_index"`
+	// GlycemicLoad: Glycemic load.
+	GlycemicLoad Optional[float64] `json:"glycemic_load"`
+	// ImageURL: URL of a picture of the dish, when the source has one.
+	ImageURL Optional[string] `json:"image_url"`
+	// Distance: Distance from (latitude, longitude) in meters.
+	Distance Optional[float64] `json:"distance"`
+	Servings []ServingOption   `json:"servings"`
 }
 
 func (v RestaurantMenuItem) MarshalJSON() ([]byte, error) {
@@ -1077,6 +1158,7 @@ func (v RevokeClientTokensRequest) GoString() string { return v.String() }
 
 // ScanFoodPhotoBody is generated from the January contract.
 type ScanFoodPhotoBody struct {
+	// Image: The meal photo, as an http(s) URL or a base64 data URI (data:image/jpeg;base64,…). Any image of the meal works — a camera photo, a screenshot, or a hosted picture. Formats: JPG, PNG, WEBP, and non-animated GIF. A URL must be publicly fetchable server-side: hosts that block hotlinking or require a login cannot be read. Prefer the URL when the image is already hosted — base64 inflates the payload by ~33%, and request bodies over 5 MB are rejected, so keep raw images under ~3.5 MB when encoding.
 	Image string `json:"image"`
 }
 
@@ -1091,7 +1173,8 @@ func (v ScanFoodPhotoBody) GoString() string { return v.String() }
 // ScanFoodPhotoRequest is generated from the January contract.
 type ScanFoodPhotoRequest struct {
 	EndUserID string `json:"x-end-user-id,omitempty"`
-	Image     string `json:"image"`
+	// Image: The meal photo, as an http(s) URL or a base64 data URI (data:image/jpeg;base64,…). Any image of the meal works — a camera photo, a screenshot, or a hosted picture. Formats: JPG, PNG, WEBP, and non-animated GIF. A URL must be publicly fetchable server-side: hosts that block hotlinking or require a login cannot be read. Prefer the URL when the image is already hosted — base64 inflates the payload by ~33%, and request bodies over 5 MB are rejected, so keep raw images under ~3.5 MB when encoding.
+	Image string `json:"image"`
 }
 
 func (v ScanFoodPhotoRequest) MarshalJSON() ([]byte, error) {
@@ -1107,6 +1190,7 @@ func (v ScanFoodPhotoRequest) GoString() string { return v.String() }
 
 // SearchFoodsByNaturalLanguageBody is generated from the January contract.
 type SearchFoodsByNaturalLanguageBody struct {
+	// Text: Natural-language description of what was eaten; parsed into detected foods with quantities.
 	Text string `json:"text"`
 }
 
@@ -1123,7 +1207,8 @@ func (v SearchFoodsByNaturalLanguageBody) GoString() string { return v.String() 
 // SearchFoodsByNaturalLanguageRequest is generated from the January contract.
 type SearchFoodsByNaturalLanguageRequest struct {
 	EndUserID string `json:"x-end-user-id,omitempty"`
-	Query     string `json:"text"`
+	// Query: Natural-language description of what was eaten; parsed into detected foods with quantities.
+	Query string `json:"text"`
 }
 
 func (v SearchFoodsByNaturalLanguageRequest) MarshalJSON() ([]byte, error) {
@@ -1189,6 +1274,7 @@ func (v SearchRestaurantMenuItemsRequest) GoString() string { return v.String() 
 
 // SearchRestaurantMenuItemsResponse is generated from the January contract.
 type SearchRestaurantMenuItemsResponse struct {
+	// TotalCount: Total number of matches; may exceed the number of items returned.
 	TotalCount float64              `json:"total_count"`
 	Items      []RestaurantMenuItem `json:"items"`
 }
@@ -1233,6 +1319,7 @@ func (v SearchRestaurantsRequest) GoString() string { return v.String() }
 
 // SearchRestaurantsResponse is generated from the January contract.
 type SearchRestaurantsResponse struct {
+	// TotalCount: Total number of matches; may exceed the number of items returned.
 	TotalCount float64      `json:"total_count"`
 	Items      []Restaurant `json:"items"`
 }
@@ -1272,12 +1359,14 @@ type ServingID = int64
 
 // ServingOption is generated from the January contract.
 type ServingOption struct {
-	ID            ServingID `json:"id"`
-	Quantity      float64   `json:"quantity"`
-	Unit          string    `json:"unit"`
-	ScalingFactor float64   `json:"scaling_factor"`
-	WeightGrams   *float64  `json:"weight_grams"`
-	IsPrimary     bool      `json:"is_primary"`
+	ID       ServingID `json:"id"`
+	Quantity float64   `json:"quantity"`
+	Unit     string    `json:"unit"`
+	// ScalingFactor: Multiplier applied to the food's nutrition values for this serving.
+	ScalingFactor float64  `json:"scaling_factor"`
+	WeightGrams   *float64 `json:"weight_grams"`
+	// IsPrimary: Whether this is the default serving for the food.
+	IsPrimary bool `json:"is_primary"`
 }
 
 func (v ServingOption) MarshalJSON() ([]byte, error) {
@@ -1303,8 +1392,10 @@ const (
 
 // SuggestFoodAlternativesBody is generated from the January contract.
 type SuggestFoodAlternativesBody struct {
+	// DietRestrictions: Allergens/ingredients to avoid. Omit it (or send []) if none apply.
 	DietRestrictions Optional[[]DietRestriction] `json:"diet_restrictions"`
-	DietPreferences  Optional[[]DietPreference]  `json:"diet_preferences"`
+	// DietPreferences: Dietary patterns to match. Omit it (or send []) if none apply.
+	DietPreferences Optional[[]DietPreference] `json:"diet_preferences"`
 }
 
 func (v SuggestFoodAlternativesBody) MarshalJSON() ([]byte, error) {
@@ -1320,10 +1411,12 @@ func (v SuggestFoodAlternativesBody) GoString() string { return v.String() }
 
 // SuggestFoodAlternativesRequest is generated from the January contract.
 type SuggestFoodAlternativesRequest struct {
-	EndUserID        string                      `json:"x-end-user-id,omitempty"`
-	FoodID           FoodID                      `json:"food_id"`
+	EndUserID string `json:"x-end-user-id,omitempty"`
+	FoodID    FoodID `json:"food_id"`
+	// DietRestrictions: Allergens/ingredients to avoid. Omit it (or send []) if none apply.
 	DietRestrictions Optional[[]DietRestriction] `json:"diet_restrictions"`
-	DietPreferences  Optional[[]DietPreference]  `json:"diet_preferences"`
+	// DietPreferences: Dietary patterns to match. Omit it (or send []) if none apply.
+	DietPreferences Optional[[]DietPreference] `json:"diet_preferences"`
 }
 
 func (v SuggestFoodAlternativesRequest) MarshalJSON() ([]byte, error) {
@@ -1343,6 +1436,7 @@ func (v SuggestFoodAlternativesRequest) GoString() string { return v.String() }
 
 // SuggestFoodAlternativesResponse is generated from the January contract.
 type SuggestFoodAlternativesResponse struct {
+	// Alternatives: Healthier alternatives matching the restrictions and preferences. An empty array is a valid result, not an error.
 	Alternatives []FoodAlternative `json:"alternatives"`
 }
 
@@ -1358,9 +1452,10 @@ func (v SuggestFoodAlternativesResponse) GoString() string { return v.String() }
 
 // UpdateFoodLogBody is generated from the January contract.
 type UpdateFoodLogBody struct {
-	Foods        Optional[[]FoodLogInputFood] `json:"foods"`
-	TimestampUTC Optional[string]             `json:"timestamp_utc"`
-	Name         Optional[string]             `json:"name"`
+	Foods Optional[[]FoodLogInputFood] `json:"foods"`
+	// TimestampUTC: UTC consumption time, ending in Z.
+	TimestampUTC Optional[string] `json:"timestamp_utc"`
+	Name         Optional[string] `json:"name"`
 }
 
 func (v UpdateFoodLogBody) MarshalJSON() ([]byte, error) {
@@ -1379,8 +1474,9 @@ type UpdateFoodLogRequest struct {
 	EndUserTimezone string                       `json:"x-end-user-timezone,omitempty"`
 	LogID           FoodLogID                    `json:"log_id"`
 	Foods           Optional[[]FoodLogInputFood] `json:"foods"`
-	TimestampUTC    Optional[string]             `json:"timestamp_utc"`
-	Name            Optional[string]             `json:"name"`
+	// TimestampUTC: UTC consumption time, ending in Z.
+	TimestampUTC Optional[string] `json:"timestamp_utc"`
+	Name         Optional[string] `json:"name"`
 }
 
 func (v UpdateFoodLogRequest) MarshalJSON() ([]byte, error) {
