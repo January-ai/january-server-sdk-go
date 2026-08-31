@@ -21,7 +21,7 @@ func offlineGoEnv() []string {
 	// Allowlist build infrastructure only: never inherit keys, proxy credentials,
 	// JANUARY_* settings, or other arbitrary environment variables.
 	env := []string{"GOWORK=off", "GOPROXY=off", "GOSUMDB=off", "GOTOOLCHAIN=local"}
-	for _, name := range []string{"PATH", "HOME", "TMPDIR", "GOCACHE", "GOPATH", "GOROOT"} {
+	for _, name := range []string{"PATH", "HOME", "USERPROFILE", "LOCALAPPDATA", "APPDATA", "SystemRoot", "TEMP", "TMP", "TMPDIR", "GOCACHE", "GOPATH", "GOROOT", "GOMODCACHE"} {
 		if value, ok := os.LookupEnv(name); ok {
 			env = append(env, name+"="+value)
 		}

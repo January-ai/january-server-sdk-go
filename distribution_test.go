@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/fs"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -95,8 +96,13 @@ func TestModuleDistribution(t *testing.T) {
 	cmd := exec.Command("go", "run", "-mod=mod", ".")
 	cmd.Dir = consumer
 	// Inherit build infrastructure only, never real credentials or proxy settings.
-	cmd.Env = []string{"GOWORK=off", "GOSUMDB=off", "GOTOOLCHAIN=local", "GOFLAGS=-modcacherw", "GOPROXY=file://" + proxy, "GOMODCACHE=" + filepath.Join(dir, "cache")}
-	for _, name := range []string{"PATH", "HOME", "TMPDIR", "GOCACHE", "GOPATH", "GOROOT"} {
+	proxyPath := filepath.ToSlash(proxy)
+	if !strings.HasPrefix(proxyPath, "/") {
+		proxyPath = "/" + proxyPath
+	}
+	proxyURL := (&url.URL{Scheme: "file", Path: proxyPath}).String()
+	cmd.Env = []string{"GOWORK=off", "GOSUMDB=off", "GOTOOLCHAIN=local", "GOFLAGS=-modcacherw", "GOPROXY=" + proxyURL, "GOMODCACHE=" + filepath.Join(dir, "cache")}
+	for _, name := range []string{"PATH", "HOME", "USERPROFILE", "LOCALAPPDATA", "APPDATA", "SystemRoot", "TEMP", "TMP", "TMPDIR", "GOCACHE", "GOPATH", "GOROOT"} {
 		if value, ok := os.LookupEnv(name); ok {
 			cmd.Env = append(cmd.Env, name+"="+value)
 		}
