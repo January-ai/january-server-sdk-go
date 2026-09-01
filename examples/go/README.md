@@ -51,7 +51,7 @@ Expected JSON shape (safe placeholder, not a usable token):
 {"token":"ct-REDACTED-PLACEHOLDER","expiresIn":1800}
 ```
 
-The relay uses root `MintClientToken`, maps its `token` and `expires_in` fields to
+The relay uses root `CreateClientToken`, maps its `token` and `expires_in` fields to
 the client SDK's `{token, expiresIn}` shape, and exposes no other upstream fields.
 Missing/blank demo identity returns HTTP 401 with `{"error":"unauthorized"}`.
 Mint failures return HTTP 502 with `{"error":"Unable to mint client token."}`;

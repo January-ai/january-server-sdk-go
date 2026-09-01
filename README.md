@@ -23,7 +23,7 @@ examples below. A `ct-` client token is a short-lived end-user credential for
 mobile/web clients and is rejected by this server SDK. Client tokens are optional
 and **not needed for server food search**. To mint client tokens, open
 [Client tokens](https://dashboard.january.ai/dashboard/client-tokens), choose
-**Enable client tokens**, then call `MintClientToken` on your backend.
+**Enable client tokens**, then call `CreateClientToken` on your backend.
 This enablement is required for minting, not for revocation.
 
 ## Install
@@ -157,11 +157,15 @@ func run(stdout, stderr io.Writer) int {
 		printSearchFailure(stderr, err)
 		return 1
 	}
-	fmt.Fprintf(stdout, "Found %.0f foods.\n", foods.TotalCount)
+	fmt.Fprintf(stdout, "Found %d foods.\n", len(foods.Items))
 	if len(foods.Items) == 0 {
 		fmt.Fprintln(stdout, "No results.")
 	} else {
-		fmt.Fprintf(stdout, "First food: %s\n", foods.Items[0].Name)
+		name := "(unnamed)"
+		if foods.Items[0].Name != nil {
+			name = *foods.Items[0].Name
+		}
+		fmt.Fprintf(stdout, "First food: %s\n", name)
 	}
 	return 0
 }
@@ -208,16 +212,16 @@ per-call user values; timezone applies where the contract declares it.
 | Resource | Methods |
 | --- | --- |
 | `Foods` | `Search`, `Autocomplete`, `SuggestAlternatives`, `LookupBarcode`, `Get` |
-| `Restaurants` | `Search`, `SearchMenuItems` |
+| `Restaurants` | `Search`, `GetMenuItems`, `SearchMenuItems` |
 | `FoodAnalysis` | `AnalyzePhoto`, `AnalyzeDescription`, `Correct` |
-| `FoodLogs` | `List`, `Create`, `Update`, `Delete` |
+| `FoodLogs` | `List`, `Get`, `Create`, `Update`, `Delete` |
 | `Glucose` | `Predict` |
 
 All network methods take `context.Context` first. JSON operations return typed
-data, response metadata, and an error. Input names follow the client SDK:
-barcode `UPC` is a string preserving leading zeros, description uses `Query`,
-photo uses `Image` (base64/data URI), food IDs are numeric, and food-log listing
-uses `Start` and `End` calendar dates. Model names retain contract vocabulary.
+data, response metadata, and an error. Input names follow the production contract:
+barcode `Barcode` preserves leading zeros, description uses `Query`, photo uses
+`Image` (base64/data URI), IDs are opaque strings, and food-log listing uses
+`StartDate`, `EndDate`, and `Timezone`. Model names retain contract vocabulary.
 
 Fragments below assume `user` and `ctx` from the quickstart; check each returned
 error before using the result:
@@ -226,7 +230,7 @@ error before using the result:
 analysis, _, err := user.FoodAnalysis.AnalyzeDescription(ctx,
     january.SearchFoodsByNaturalLanguageRequest{Query: "two eggs"})
 foods, _, err := user.Foods.LookupBarcode(ctx,
-    january.LookupFoodByBarcodeRequest{UPC: "049000006346"})
+    january.LookupFoodByBarcodeRequest{Barcode: "049000006346"})
 ```
 
 ### FoodPortion: local serving calculations
@@ -245,7 +249,8 @@ logInput := january.CreateFoodLogRequest{
     Foods: []january.FoodLogInputFood{portion.Selection},
 }
 glucoseInput := january.PredictGlucoseRequest{
-    StartTime: "2026-08-30T12:00:00Z",
+	Timezone:  "UTC",
+	StartTime: "2026-08-30T12:00:00Z",
     UserProfile: january.GlucosePredictionProfile{
         Age: 30, Sex: january.SexMale,
         Height: january.Height{Value: 175, Unit: january.HeightUnitCm},
@@ -279,36 +284,36 @@ The complete [portion example](examples/portions/main.go) runs entirely offline.
 
 ## Server-only APIs
 
-Only the root client exposes `MintClientToken`, `RevokeClientTokens`, and
-`Credits`; these are not methods on the `ForUser` view.
+Only the root client exposes `CreateClientToken`, `RevokeClientTokens`, and
+`GetCredits`; these are not methods on the `ForUser` view.
 
 Independent fragments below assume `client`, `ctx`, and a trusted
 `authenticatedUserID` are available. Check each error before using its result:
 
 Token creation requires **Enable client tokens** in the
 [Client tokens dashboard](https://dashboard.january.ai/dashboard/client-tokens).
-Use root `Credits` to read the balance and [Billing](https://dashboard.january.ai/billing)
+Use root `GetCredits` to read the balance and [Billing](https://dashboard.january.ai/billing)
 to check your current plan and credit allowance. These are
 separate operations, not a workflow: do not revoke tokens immediately after
 minting them unless that is the action your application intends.
 
 ```go
-token, _, err := client.MintClientToken(ctx, january.MintClientTokenRequest{
+token, _, err := client.CreateClientToken(ctx, january.CreateClientTokenRequest{
     EndUserID: authenticatedUserID,
-    Scopes: january.Value([]string{"foods:read"}),
-    TTLSeconds: january.Value(float64(1800)),
+    Scopes: []string{"foods:read"},
+    TTLSeconds: january.Value(int64(1800)),
 })
 
-response, err := client.RevokeClientTokens(ctx, january.RevokeClientTokensRequest{
+result, response, err := client.RevokeClientTokens(ctx, january.RevokeClientTokensRequest{
     EndUserID: authenticatedUserID,
 })
 
-balance, _, err := client.Credits(ctx)
+balance, _, err := client.GetCredits(ctx)
 ```
 
-Revocation is one DELETE with `end_user_id`, returning 204 and metadata rather
-than a body. `response.RevokedCount` exposes `X-Revoked-Count`.
-There is no revoke-all loop, even when that count is 500. Never log minted tokens.
+Revocation is one POST with `end_user_id`, returning a typed result whose
+`RevokedCount` is the number revoked by that request. There is no revoke-all loop,
+even when that count is 500. Never log minted tokens.
 See [legacy compatibility](CONTRIBUTING.md#legacy-compatibility) for prototype aliases.
 
 ## Configuration and errors
@@ -382,7 +387,7 @@ source, resolve the SDK locally for testing, and exercise one localhost
 request. These checks are included in the normal CI test command.
 
 The [live E2E demo](docs/live-testing.md) is a separate explicit opt-in that uses
-real credits and exercises all 18 operations with cleanup. Its `.env` setup,
+real credits and exercises all 20 operations with cleanup. Its `.env` setup,
 safety rules, options, and reporting are documented there.
 See [contributor checks](CONTRIBUTING.md#build-and-test) for full offline verification.
 

@@ -19,8 +19,8 @@ import (
 
 var operationLabels = []string{
 	"credits", "foods.search", "foods.autocomplete", "foods.get", "foods.lookupBarcode", "foods.suggestAlternatives",
-	"restaurants.search", "restaurants.searchMenuItems", "foodAnalysis.analyzePhoto", "foodAnalysis.analyzeDescription", "foodAnalysis.correct",
-	"foodLogs.create", "foodLogs.list", "foodLogs.update", "foodLogs.delete", "glucose.predict", "mintClientToken", "revokeClientTokens",
+	"restaurants.search", "restaurants.getMenuItems", "restaurants.searchMenuItems", "foodAnalysis.analyzePhoto", "foodAnalysis.analyzeDescription", "foodAnalysis.correct",
+	"foodLogs.create", "foodLogs.list", "foodLogs.get", "foodLogs.update", "foodLogs.delete", "glucose.predict", "createClientToken", "revokeClientTokens",
 }
 
 type result struct {
@@ -73,7 +73,7 @@ func (r *runReport) finish() {
 			r.CleanupFailed++
 		}
 	}
-	ready := r.Counts.Passed == 18 && r.Counts.Failed == 0 && r.Counts.Blocked == 0 && r.CleanupFailed == 0
+	ready := r.Counts.Passed == len(operationLabels) && r.Counts.Failed == 0 && r.Counts.Blocked == 0 && r.CleanupFailed == 0
 	for _, v := range r.Checks {
 		if v.Status != "PASS" {
 			ready = false
@@ -227,8 +227,8 @@ func (r *runner) rememberLogs(logs []january.FoodLog) {
 		return
 	}
 	for _, log := range logs {
-		if name, ok := log.Name.Get(); ok && name == r.marker && log.ID != "" {
-			r.owned[log.ID] = true
+		if log.Name != nil && *log.Name == r.marker && log.ID != nil && *log.ID != "" {
+			r.owned[*log.ID] = true
 			r.createUnresolved = false
 		}
 	}
@@ -236,7 +236,7 @@ func (r *runner) rememberLogs(logs []january.FoodLog) {
 func (r *runner) cleanup() {
 	if r.createUnresolved {
 		r.cleanupStep("cleanup.findOwnLog", func(ctx context.Context) (*january.Response, error) {
-			logs, meta, err := r.user.FoodLogs.List(ctx, january.ListFoodLogsRequest{Start: r.day, End: time.Now().UTC().Format("2006-01-02")})
+			logs, meta, err := r.user.FoodLogs.List(ctx, january.ListFoodLogsRequest{StartDate: r.day, EndDate: time.Now().UTC().Format("2006-01-02"), Timezone: "UTC"})
 			if err != nil {
 				return meta, err
 			}
@@ -256,11 +256,11 @@ func (r *runner) cleanup() {
 	sort.Strings(ids)
 	for _, id := range ids {
 		r.cleanupStep("cleanup.foodLogs.delete", func(ctx context.Context) (*january.Response, error) {
-			response, meta, err := r.user.FoodLogs.Delete(ctx, january.DeleteFoodLogRequest{LogID: id})
+			meta, err := r.user.FoodLogs.Delete(ctx, january.DeleteFoodLogRequest{LogID: id})
 			if err != nil {
 				return meta, err
 			}
-			if err = assert(response != nil && response.Status == "deleted"); err == nil {
+			if err = assert(meta != nil && meta.StatusCode == http.StatusNoContent); err == nil {
 				delete(r.owned, id)
 			}
 			return meta, err
@@ -275,11 +275,11 @@ func (r *runner) cleanup() {
 	defer cancel()
 	r.ctx = ctx
 	r.step("revokeClientTokens", dependency(r.mintAttempt, "mint_not_attempted"), func(ctx context.Context) (*january.Response, error) {
-		meta, err := r.client.RevokeClientTokens(ctx, january.RevokeClientTokensRequest{EndUserID: r.userID})
+		value, meta, err := r.client.RevokeClientTokens(ctx, january.RevokeClientTokensRequest{EndUserID: r.userID})
 		if err != nil {
 			return meta, err
 		}
-		return meta, assert(meta != nil && meta.StatusCode == 204 && meta.RevokedCount != nil && *meta.RevokedCount >= 0)
+		return meta, assert(meta != nil && meta.StatusCode == http.StatusOK && value != nil && value.RevokedCount >= 0)
 	})
 	r.ctx = previous
 	if r.mintAttempt {
@@ -326,7 +326,7 @@ func runWorkflow(ctx context.Context, c config, emit func(result), newClient fun
 		report = r.report
 	}()
 	r.step("credits", "", func(ctx context.Context) (*january.Response, error) {
-		value, meta, err := r.client.Credits(ctx)
+		value, meta, err := r.client.GetCredits(ctx)
 		if err != nil {
 			return meta, err
 		}
@@ -341,7 +341,7 @@ func runWorkflow(ctx context.Context, c config, emit func(result), newClient fun
 		if value != nil {
 			candidates = append(candidates, value.Items...)
 		}
-		return meta, assert(value != nil && value.Items != nil && value.TotalCount >= 0)
+		return meta, assert(value != nil && value.Items != nil)
 	})
 	r.step("foods.autocomplete", "", func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.Foods.Autocomplete(ctx, january.AutocompleteFoodsRequest{Query: c.query})
@@ -351,23 +351,23 @@ func runWorkflow(ctx context.Context, c config, emit func(result), newClient fun
 		return meta, assert(value != nil && value.Items != nil)
 	})
 	r.step("foods.lookupBarcode", "", func(ctx context.Context) (*january.Response, error) {
-		value, meta, err := r.user.Foods.LookupBarcode(ctx, january.LookupFoodByBarcodeRequest{UPC: c.upc})
+		value, meta, err := r.user.Foods.LookupBarcode(ctx, january.LookupFoodByBarcodeRequest{Barcode: c.upc})
 		if err != nil {
 			return meta, err
 		}
 		if value != nil {
-			candidates = append(candidates, value.Items...)
+			candidates = append(candidates, *value)
 		}
-		return meta, assert(value != nil && value.Items != nil && value.TotalCount >= 0)
+		return meta, assert(value != nil && value.ID != "")
 	})
-	var foodID int64
+	var foodID string
 	for _, food := range candidates {
-		if food.ID > 0 {
+		if food.ID != "" {
 			foodID = food.ID
 			break
 		}
 	}
-	r.step("foods.get", dependency(foodID > 0, "no_live_food_id"), func(ctx context.Context) (*january.Response, error) {
+	r.step("foods.get", dependency(foodID != "", "no_live_food_id"), func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.Foods.Get(ctx, january.GetFoodRequest{FoodID: foodID})
 		if err != nil {
 			return meta, err
@@ -375,28 +375,39 @@ func runWorkflow(ctx context.Context, c config, emit func(result), newClient fun
 		if value != nil {
 			candidates = append([]january.FoodSearchItem{*value}, candidates...)
 		}
-		return meta, assert(value != nil && value.ID == foodID && value.Name != "" && value.Servings != nil)
+		return meta, assert(value != nil && value.ID == foodID && value.Name != nil && value.Servings != nil)
 	})
-	r.step("foods.suggestAlternatives", dependency(foodID > 0, "no_live_food_id"), func(ctx context.Context) (*january.Response, error) {
+	r.step("foods.suggestAlternatives", dependency(foodID != "", "no_live_food_id"), func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.Foods.SuggestAlternatives(ctx, january.SuggestFoodAlternativesRequest{FoodID: foodID})
 		if err != nil {
 			return meta, err
 		}
 		return meta, assert(value != nil && value.Alternatives != nil)
 	})
+	var restaurantID string
 	r.step("restaurants.search", "", func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.Restaurants.Search(ctx, january.SearchRestaurantsRequest{Query: c.restaurantQuery, Latitude: c.latitude, Longitude: c.longitude})
 		if err != nil {
 			return meta, err
 		}
-		return meta, assert(value != nil && value.Items != nil && value.TotalCount >= 0)
+		if value != nil && len(value.Items) > 0 {
+			restaurantID = value.Items[0].ID
+		}
+		return meta, assert(value != nil && value.Items != nil)
+	})
+	r.step("restaurants.getMenuItems", dependency(restaurantID != "", "no_live_restaurant_id"), func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.Restaurants.GetMenuItems(ctx, january.GetRestaurantMenuItemsRequest{RestaurantID: restaurantID})
+		if err != nil {
+			return meta, err
+		}
+		return meta, assert(value != nil && value.Items != nil)
 	})
 	r.step("restaurants.searchMenuItems", "", func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.Restaurants.SearchMenuItems(ctx, january.SearchRestaurantMenuItemsRequest{Query: c.restaurantQuery, Latitude: c.latitude, Longitude: c.longitude})
 		if err != nil {
 			return meta, err
 		}
-		return meta, assert(value != nil && value.Items != nil && value.TotalCount >= 0)
+		return meta, assert(value != nil && value.Items != nil)
 	})
 	var scan *january.FoodScan
 	r.step("foodAnalysis.analyzePhoto", "", func(ctx context.Context) (*january.Response, error) {
@@ -433,7 +444,7 @@ func runWorkflow(ctx context.Context, c config, emit func(result), newClient fun
 		return meta, assert(value != nil && len(value.Detections) > 0)
 	})
 	r.step("foodAnalysis.correct", dependency(scan != nil, "no_returned_detections"), func(ctx context.Context) (*january.Response, error) {
-		value, meta, err := r.user.FoodAnalysis.Correct(ctx, january.CorrectPhotoScanRequest{MealName: scan.MealName, Detections: scan.Detections, UserInput: "The portion is one serving."})
+		value, meta, err := r.user.FoodAnalysis.Correct(ctx, january.CorrectPhotoScanRequest{Analysis: *scan, Instruction: "The portion is one serving."})
 		if err != nil {
 			return meta, err
 		}
@@ -442,10 +453,10 @@ func runWorkflow(ctx context.Context, c config, emit func(result), newClient fun
 	var selection []january.FoodLogInputFood
 outer:
 	for _, food := range candidates {
-		if food.ID > 0 {
+		if food.ID != "" {
 			for _, serving := range food.Servings {
-				if serving.ID > 0 {
-					selection = []january.FoodLogInputFood{{ID: food.ID, Serving: january.FoodLogInputServing{ID: serving.ID, Quantity: 1}}}
+				if serving.ID != nil && *serving.ID != "" {
+					selection = []january.FoodLogInputFood{{FoodID: food.ID, ServingID: *serving.ID, Quantity: 1}}
 					break outer
 				}
 			}
@@ -454,19 +465,19 @@ outer:
 	var logID string
 	r.step("foodLogs.create", dependency(len(selection) > 0, "no_live_food_and_serving"), func(ctx context.Context) (*january.Response, error) {
 		r.createUnresolved = true
-		value, meta, err := r.user.FoodLogs.Create(ctx, january.CreateFoodLogRequest{Foods: selection, TimestampUTC: january.Value(r.started.Format(time.RFC3339)), Name: january.Value(r.marker)})
-		if value != nil && value.ID != "" {
-			logID = value.ID
+		value, meta, err := r.user.FoodLogs.Create(ctx, january.CreateFoodLogRequest{Foods: selection, EatenAt: january.Value(r.started.Format(time.RFC3339)), Name: january.Value(r.marker)})
+		if value != nil && value.ID != nil && *value.ID != "" {
+			logID = *value.ID
 			r.owned[logID] = true
 			r.createUnresolved = false
 		}
 		if err != nil {
 			return meta, err
 		}
-		return meta, assert(value != nil && value.ID != "" && len(value.Foods) > 0 && value.Foods[0].ID == selection[0].ID)
+		return meta, assert(value != nil && value.ID != nil && *value.ID != "" && len(value.Foods) > 0 && value.Foods[0].FoodID != nil && *value.Foods[0].FoodID == selection[0].FoodID)
 	})
 	r.step("foodLogs.list", "", func(ctx context.Context) (*january.Response, error) {
-		value, meta, err := r.user.FoodLogs.List(ctx, january.ListFoodLogsRequest{Start: r.day, End: time.Now().UTC().Format("2006-01-02")})
+		value, meta, err := r.user.FoodLogs.List(ctx, january.ListFoodLogsRequest{StartDate: r.day, EndDate: time.Now().UTC().Format("2006-01-02"), Timezone: "UTC"})
 		if err != nil {
 			return meta, err
 		}
@@ -477,7 +488,7 @@ outer:
 		if logID != "" {
 			found := false
 			for _, v := range value.Items {
-				if v.ID == logID {
+				if v.ID != nil && *v.ID == logID {
 					found = true
 				}
 			}
@@ -485,7 +496,14 @@ outer:
 				return meta, safeError("created_log_not_listed")
 			}
 		}
-		return meta, assert(value.Items != nil && value.TotalCount >= 0)
+		return meta, assert(value.Items != nil)
+	})
+	r.step("foodLogs.get", dependency(logID != "", "no_created_log_id"), func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.FoodLogs.Get(ctx, january.GetFoodLogRequest{LogID: logID})
+		if err != nil {
+			return meta, err
+		}
+		return meta, assert(value != nil && value.ID != nil && *value.ID == logID)
 	})
 	r.step("foodLogs.update", dependency(logID != "", "no_created_log_id"), func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.FoodLogs.Update(ctx, january.UpdateFoodLogRequest{LogID: logID, Name: january.Value(r.marker + " updated")})
@@ -495,15 +513,14 @@ outer:
 		if value == nil {
 			return meta, safeError("response_assertion_failed")
 		}
-		name, ok := value.Name.Get()
-		return meta, assert(value.ID == logID && ok && name == r.marker+" updated")
+		return meta, assert(value.ID != nil && *value.ID == logID && value.Name != nil && *value.Name == r.marker+" updated")
 	})
 	r.step("foodLogs.delete", dependency(logID != "", "no_created_log_id"), func(ctx context.Context) (*january.Response, error) {
-		value, meta, err := r.user.FoodLogs.Delete(ctx, january.DeleteFoodLogRequest{LogID: logID})
+		meta, err := r.user.FoodLogs.Delete(ctx, january.DeleteFoodLogRequest{LogID: logID})
 		if err != nil {
 			return meta, err
 		}
-		if err = assert(value != nil && value.Status == "deleted"); err == nil {
+		if err = assert(meta != nil && meta.StatusCode == http.StatusNoContent); err == nil {
 			delete(r.owned, logID)
 		}
 		return meta, err
@@ -511,16 +528,16 @@ outer:
 	r.step("glucose.predict", dependency(len(selection) > 0, "no_live_food_and_serving"), func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.Glucose.Predict(ctx, january.PredictGlucoseRequest{
 			UserProfile: january.GlucosePredictionProfile{Age: 30, Sex: january.SexMale, Height: january.Height{Value: 175, Unit: january.HeightUnitCm}, Weight: january.Weight{Value: 70, Unit: january.WeightUnitKg}},
-			Foods:       selection, StartTime: r.started.Format(time.RFC3339),
+			Timezone:    "UTC", Foods: selection, StartTime: r.started.Format(time.RFC3339),
 		})
 		if err != nil {
 			return meta, err
 		}
-		return meta, assert(value != nil && len(value.Prediction) > 0 && value.ImpactScore != "")
+		return meta, assert(value != nil && len(value.Points) > 0 && value.ImpactScore != nil)
 	})
-	r.step("mintClientToken", "", func(ctx context.Context) (*january.Response, error) {
+	r.step("createClientToken", "", func(ctx context.Context) (*january.Response, error) {
 		r.mintAttempt = true
-		value, meta, err := r.client.MintClientToken(ctx, january.MintClientTokenRequest{EndUserID: id, Scopes: january.Value([]string{"foods:read"}), TTLSeconds: january.Value(float64(300))})
+		value, meta, err := r.client.CreateClientToken(ctx, january.CreateClientTokenRequest{EndUserID: id, Scopes: []string{"foods:read"}, TTLSeconds: january.Value(int64(300))})
 		if value != nil {
 			r.token = value.Token
 		}

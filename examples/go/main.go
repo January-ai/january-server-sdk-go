@@ -39,10 +39,10 @@ func main() {
 		}
 		// Identity comes from the demo header, never the request body. The server
 		// selects the grant; callers cannot supply scopes or a token lifetime.
-		token, _, err := client.MintClientToken(request.Context(), january.MintClientTokenRequest{
+		token, _, err := client.CreateClientToken(request.Context(), january.CreateClientTokenRequest{
 			EndUserID:  endUserID,
-			Scopes:     january.Value([]string{"foods:read"}),
-			TTLSeconds: january.Value(float64(1800)),
+			Scopes:     []string{"foods:read"},
+			TTLSeconds: january.Value(int64(1800)),
 		})
 		if err != nil {
 			writeJSON(response, http.StatusBadGateway, map[string]string{"error": "Unable to mint client token."})
@@ -50,8 +50,8 @@ func main() {
 		}
 		// Preserve the client SDK relay shape, not the upstream snake_case DTO.
 		writeJSON(response, http.StatusOK, struct {
-			Token     string  `json:"token"`
-			ExpiresIn float64 `json:"expiresIn"`
+			Token     string `json:"token"`
+			ExpiresIn int64  `json:"expiresIn"`
 		}{Token: token.Token, ExpiresIn: token.ExpiresIn})
 	})
 

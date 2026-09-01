@@ -58,7 +58,7 @@ func NewFoodPortion(food FoodSearchItem, options FoodPortionOptions) (*FoodPorti
 		}
 		index = -1
 		for i, serving := range food.Servings {
-			if serving.ID == id {
+			if serving.ID != nil && *serving.ID == id {
 				index = i
 				break
 			}
@@ -68,17 +68,18 @@ func NewFoodPortion(food FoodSearchItem, options FoodPortionOptions) (*FoodPorti
 		}
 	} else {
 		for i, serving := range food.Servings {
-			if serving.IsPrimary {
+			if serving.IsPrimary != nil && *serving.IsPrimary {
 				index = i
 				break
 			}
 		}
 	}
 	serving := food.Servings[index]
-	if !positiveFinite(serving.Quantity) || !positiveFinite(serving.ScalingFactor) {
+	if serving.ID == nil || serving.Quantity == nil || serving.ScalingFactor == nil ||
+		!positiveFinite(*serving.Quantity) || !positiveFinite(*serving.ScalingFactor) {
 		return nil, &FoodPortionError{Code: FoodPortionInvalidServing}
 	}
-	quantity := serving.Quantity
+	quantity := *serving.Quantity
 	if options.Quantity.IsSet() {
 		value, ok := options.Quantity.Get()
 		if !ok {
@@ -89,19 +90,18 @@ func NewFoodPortion(food FoodSearchItem, options FoodPortionOptions) (*FoodPorti
 	if !positiveFinite(quantity) || quantity > 10000 {
 		return nil, &FoodPortionError{Code: FoodPortionInvalidQuantity}
 	}
-	scale := quantity * serving.ScalingFactor / serving.Quantity
+	scale := quantity * *serving.ScalingFactor / *serving.Quantity
 	portion := &FoodPortion{
-		FoodID: food.ID, Serving: serving, Quantity: quantity,
+		FoodID: food.ID, Serving: cloneServingOption(serving), Quantity: quantity,
 		Nutrition:     scalePortionNutrition(food.Nutrients, scale),
-		GlycemicIndex: food.GlycemicIndex,
+		GlycemicIndex: optionalPortionNumber(food.GlycemicIndex, 1),
 		GlycemicLoad:  scalePortionNumber(food.GlycemicLoad, scale),
-		Selection:     FoodLogInputFood{ID: food.ID, Serving: FoodLogInputServing{ID: serving.ID, Quantity: quantity}},
+		Selection:     FoodLogInputFood{FoodID: food.ID, ServingID: *serving.ID, Quantity: quantity},
 	}
 	if serving.WeightGrams != nil {
 		// Copy the model's pointer so neither snapshot aliases the caller's weight.
 		weight := *serving.WeightGrams
-		portion.Serving.WeightGrams = &weight
-		portion.TotalWeightGrams = Value(weight * quantity / serving.Quantity)
+		portion.TotalWeightGrams = Value(weight * quantity / *serving.Quantity)
 	}
 	return portion, nil
 }
@@ -115,11 +115,44 @@ func positiveFinite(value float64) bool {
 	return value > 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
-func scalePortionNumber(value Optional[float64], scale float64) Optional[float64] {
-	if number, ok := value.Get(); ok {
-		return Value(number * scale)
+func optionalPortionNumber(value *float64, scale float64) Optional[float64] {
+	if value == nil {
+		return Optional[float64]{}
 	}
-	return value
+	return Value(*value * scale)
+}
+
+func scalePortionNumber(value *float64, scale float64) Optional[float64] {
+	return optionalPortionNumber(value, scale)
+}
+
+func cloneServingOption(serving ServingOption) ServingOption {
+	clone := serving
+	if serving.ID != nil {
+		value := *serving.ID
+		clone.ID = &value
+	}
+	if serving.Quantity != nil {
+		value := *serving.Quantity
+		clone.Quantity = &value
+	}
+	if serving.Unit != nil {
+		value := *serving.Unit
+		clone.Unit = &value
+	}
+	if serving.ScalingFactor != nil {
+		value := *serving.ScalingFactor
+		clone.ScalingFactor = &value
+	}
+	if serving.WeightGrams != nil {
+		value := *serving.WeightGrams
+		clone.WeightGrams = &value
+	}
+	if serving.IsPrimary != nil {
+		value := *serving.IsPrimary
+		clone.IsPrimary = &value
+	}
+	return clone
 }
 
 func scalePortionAmount(value Optional[NutrientAmount], scale float64) Optional[NutrientAmount] {

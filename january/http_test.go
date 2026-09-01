@@ -41,17 +41,17 @@ func TestHTTPContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(encoded) != `{"token":"ct-fixture","expiresIn":300}` {
+	if string(encoded) != `{"end_user_id":"user","expires_at":"2026-08-30T18:30:00Z","expires_in":300,"scopes":["foods:read"],"token":"ct-fixture"}` {
 		t.Fatalf("wrong relay shape: %s", encoded)
 	}
 	if string(requests[0]["end_user_id"]) != `"user"` || string(requests[0]["ttl_seconds"]) != "600" || string(requests[0]["scopes"]) != `["foods:read"]` {
 		t.Fatalf("wrong request: %s", requests[0])
 	}
-	_, err = client.ClientTokens.Create(context.Background(), CreateClientTokenInput{EndUserID: "user"})
+	_, err = client.ClientTokens.Create(context.Background(), CreateClientTokenInput{EndUserID: "user", Scopes: []string{ScopeFoodsRead}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(requests[1]) != 1 {
+	if len(requests[1]) != 2 {
 		t.Fatalf("optional values were not omitted: %v", requests[1])
 	}
 	for _, invalid := range []string{
@@ -63,7 +63,7 @@ func TestHTTPContract(t *testing.T) {
 		`{"access_token":"old","expires_in":300}`,
 	} {
 		payload = invalid
-		_, err := client.ClientTokens.Create(context.Background(), CreateClientTokenInput{EndUserID: "user"})
+		_, err := client.ClientTokens.Create(context.Background(), CreateClientTokenInput{EndUserID: "user", Scopes: []string{ScopeFoodsRead}})
 		var apiError *APIError
 		if !errors.As(err, &apiError) || apiError.StatusCode != 502 {
 			t.Fatalf("accepted invalid payload %s: %v", invalid, err)
@@ -72,7 +72,7 @@ func TestHTTPContract(t *testing.T) {
 	status = http.StatusTooManyRequests
 	payload = `{"message":"Try later","code":"rate_limited"}`
 	count := len(requests)
-	_, err = client.ClientTokens.Create(context.Background(), CreateClientTokenInput{EndUserID: "user"})
+	_, err = client.ClientTokens.Create(context.Background(), CreateClientTokenInput{EndUserID: "user", Scopes: []string{ScopeFoodsRead}})
 	var apiError *APIError
 	if !errors.As(err, &apiError) || apiError.Code != "rate_limited" {
 		t.Fatalf("lost API error: %v", err)
@@ -83,7 +83,7 @@ func TestHTTPContract(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err = client.ClientTokens.Create(ctx, CreateClientTokenInput{EndUserID: "user"})
+	_, err = client.ClientTokens.Create(ctx, CreateClientTokenInput{EndUserID: "user", Scopes: []string{ScopeFoodsRead}})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("lost cancellation: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestRequestValidation(t *testing.T) {
 			t.Fatalf("accepted invalid input: %#v", input)
 		}
 	}
-	if err := validateCreateInput(CreateClientTokenInput{EndUserID: " " + strings.Repeat("😀", 32) + " "}); err != nil {
+	if err := validateCreateInput(CreateClientTokenInput{EndUserID: " " + strings.Repeat("😀", 32) + " ", Scopes: []string{ScopeFoodsRead}}); err != nil {
 		t.Fatal(err)
 	}
 }

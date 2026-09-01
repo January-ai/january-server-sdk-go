@@ -70,11 +70,11 @@ func executeOnce(ctx context.Context, s service, op operation, input any, output
 	for _, p := range op.Parameters {
 		raw, exists := values[p.Name]
 		if p.In == "header" && s.user.id != "" {
-			if p.Name == "x-end-user-id" {
+			if strings.EqualFold(p.Name, "January-End-User-ID") || strings.EqualFold(p.Name, "X-End-User-ID") {
 				raw, _ = json.Marshal(s.user.id)
 				exists = true
 			}
-			if p.Name == "x-end-user-timezone" {
+			if strings.EqualFold(p.Name, "X-End-User-Timezone") {
 				exists = s.user.timezone != ""
 				raw, _ = json.Marshal(s.user.timezone)
 			}

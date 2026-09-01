@@ -57,7 +57,7 @@ func TestRetryPolicyAndBudgets(t *testing.T) {
 			t.Fatal(status)
 		}
 	}
-	for _, op := range []operation{opCreateFoodLog, opMintClientToken, opRevokeClientTokens} {
+	for _, op := range []operation{opCreateFoodLog, opCreateClientToken, opRevokeClientTokens} {
 		if _, ok, _ := retryDelay(op, &APIError{StatusCode: 503}, 0, 0); ok {
 			t.Fatalf("ambiguous write retried: %s", op.ID)
 		}
@@ -124,7 +124,7 @@ func TestErrorDiagnosticsAreRedactedAndBounded(t *testing.T) {
 	}))
 	defer server.Close()
 	c, _ := NewClient(Config{SecretKey: "sk-secret", BaseURL: server.URL})
-	_, response, err := c.Credits(context.Background())
+	_, response, err := c.GetCredits(context.Background())
 	var api *APIError
 	if !errors.As(err, &api) || !errors.Is(err, ErrPermissionDenied) {
 		t.Fatal(err)

@@ -11,14 +11,17 @@ import (
 
 func main() {
 	weight := 120.0
+	name, id, unit := "Synthetic example food", "2", "pieces"
+	quantity, scaling, primary := 2.0, 3.0, true
+	gi, gl := 50.0, 8.0
 	food := january.FoodSearchItem{
-		ID: 42, Name: "Synthetic example food",
+		ID: "42", Name: &name,
 		Nutrients: january.NutritionFacts{
 			Calories: january.Value(january.NutrientAmount{Value: 100, Unit: "kcal"}),
 			Protein:  january.Value(january.NutrientAmount{Value: 0, Unit: "g"}),
 		},
-		GlycemicIndex: january.Value(50.0), GlycemicLoad: january.Value(8.0),
-		Servings: []january.ServingOption{{ID: 2, Quantity: 2, Unit: "pieces", ScalingFactor: 3, WeightGrams: &weight, IsPrimary: true}},
+		GlycemicIndex: &gi, GlycemicLoad: &gl,
+		Servings: []january.ServingOption{{ID: &id, Quantity: &quantity, Unit: &unit, ScalingFactor: &scaling, WeightGrams: &weight, IsPrimary: &primary}},
 	}
 	portion, err := january.NewFoodPortion(food, january.FoodPortionOptions{Quantity: january.Value(4.0)})
 	if err != nil {
@@ -33,6 +36,7 @@ func main() {
 	// Both inputs use the exact generated selection type. No requests are made.
 	logInput := january.CreateFoodLogRequest{Foods: []january.FoodLogInputFood{portion.Selection}}
 	predictionInput := january.PredictGlucoseRequest{
+		Timezone:  "UTC",
 		StartTime: "2026-08-30T12:00:00Z",
 		UserProfile: january.GlucosePredictionProfile{
 			Age: 30, Sex: january.SexMale,

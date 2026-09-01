@@ -4,7 +4,6 @@ package january
 import (
 	"context"
 	"encoding/json"
-	"math"
 	"strings"
 )
 
@@ -425,12 +424,9 @@ var generatedSchemas = map[string]json.RawMessage{
 }
 
 func (c *Client) mintLegacy(ctx context.Context, input CreateClientTokenInput, pathOverride string) (ClientToken, error) {
-	request := CreateClientTokenRequest{EndUserID: strings.TrimSpace(input.EndUserID), Scopes: input.Scopes}
-	if input.Scopes != nil {
-		request.Scopes = Value(input.Scopes)
-	}
+	request := CreateClientTokenRequest{EndUserID: strings.TrimSpace(input.EndUserID), Scopes: append([]string(nil), input.Scopes...)}
 	if input.TTLSeconds != nil {
-		request.TTLSeconds = Value(float64(*input.TTLSeconds))
+		request.TTLSeconds = Value(int64(*input.TTLSeconds))
 	}
 	op := opCreateClientToken
 	op.RetryNever = true // Preserve the prototype issuer single-request behavior.
@@ -445,8 +441,8 @@ func (c *Client) mintLegacy(ctx context.Context, input CreateClientTokenInput, p
 		}
 		return ClientToken{}, err
 	}
-	if token.Token == "" || token.ExpiresIn <= 0 || math.Trunc(token.ExpiresIn) != token.ExpiresIn {
+	if token.Token == "" || token.ExpiresIn <= 0 {
 		return ClientToken{}, &APIError{StatusCode: 502, Message: "Invalid token response", Response: response}
 	}
-	return ClientToken{Token: token.Token, AccessToken: token.Token, TokenType: "Bearer", ExpiresIn: int(token.ExpiresIn), ExpiresAt: token.ExpiresAt}, nil
+	return token, nil
 }

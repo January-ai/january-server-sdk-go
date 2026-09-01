@@ -77,7 +77,7 @@ func TestMissingKeyNoNetwork(t *testing.T) {
 		t.Fatal("missing key must fail before HTTP")
 	}
 	r := readReport(t, root)
-	if r.Status != "NOT_RUN" || r.Counts.Passed != 0 || r.Counts.Blocked != 18 {
+	if r.Status != "NOT_RUN" || r.Counts.Passed != 0 || r.Counts.Blocked != 20 {
 		t.Fatal("wrong not-run counts")
 	}
 }
@@ -103,8 +103,8 @@ type fakeService struct {
 
 const mockKey = "sk-OFFLINE-secret"
 const mockToken = "ct-OFFLINE-token"
-const foodID = 909001
-const servingID = 707001
+const foodID = "909001"
+const servingID = "707001"
 const logID = "52fdd931-5acd-432a-a5fe-5a072d848b34"
 
 func newFake(t *testing.T, modes map[string]string) *fakeService {
@@ -176,14 +176,14 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 			s.t.Error("invalid body")
 		}
 	}
-	user := r.Header.Get("X-End-User-ID")
-	if id == "mintClientToken" {
+	user := r.Header.Get("January-End-User-ID")
+	if id == "createClientToken" {
 		user, _ = request["end_user_id"].(string)
 	}
 	if id == "revokeClientTokens" {
-		user = r.URL.Query().Get("end_user_id")
+		user, _ = request["end_user_id"].(string)
 	}
-	if id != "credits" {
+	if strings.Contains(id, "FoodLog") || id == "createClientToken" || id == "revokeClientTokens" {
 		if !regexp.MustCompile("^sdk-e2e-go-[a-f0-9-]{36}$").MatchString(user) || len(user) > 64 {
 			s.t.Error("invalid isolated user")
 		}
@@ -194,15 +194,18 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 			s.t.Error("cross-user request")
 		}
 	}
-	if strings.Contains(id, "FoodLog") || id == "predictGlucose" {
-		if r.Header.Get("X-End-User-Timezone") != "UTC" {
+	if id == "listFoodLogs" && r.URL.Query().Get("timezone") != "UTC" {
+		s.t.Error("missing UTC")
+	}
+	if id == "predictGlucose" {
+		if request["timezone"] != "UTC" {
 			s.t.Error("missing UTC")
 		}
 	}
 	if id == "createFoodLog" || id == "predictGlucose" {
 		foods := request["foods"].([]any)
 		food := foods[0].(map[string]any)
-		if food["id"] != float64(foodID) || food["serving"].(map[string]any)["id"] != float64(servingID) {
+		if food["food_id"] != foodID || food["serving_id"] != servingID {
 			s.t.Error("stale selection IDs")
 		}
 	}
@@ -216,8 +219,11 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 	if id == "searchFoodsByNaturalLanguage" && request["text"] != "one banana" {
 		s.t.Error("wrong query")
 	}
-	if id == "correctPhotoScan" && (request["meal_name"] != "Breakfast Bowl" || len(request["detections"].([]any)) == 0) {
-		s.t.Error("correction must reuse returned scan")
+	if id == "correctPhotoScan" {
+		analysis, ok := request["analysis"].(map[string]any)
+		if !ok || analysis["meal_name"] != "Breakfast Bowl" || request["instruction"] != "The portion is one serving." {
+			s.t.Error("correction must reuse returned scan")
+		}
 	}
 	var body map[string]any
 	if string(f.Response.Body) != "null" {
@@ -227,10 +233,12 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	switch id {
-	case "searchFoods", "lookupFoodByBarcode":
+	case "searchFoods":
 		for _, v := range body["items"].([]any) {
 			setFood(v.(map[string]any))
 		}
+	case "lookupFoodByBarcode":
+		setFood(body)
 	case "getFood":
 		if !strings.HasSuffix(r.URL.Path, fmt.Sprint(foodID)) {
 			s.t.Error("stale get ID")
@@ -239,14 +247,21 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 	case "createFoodLog":
 		body["id"] = logID
 		body["name"] = request["name"]
-		body["timestamp_utc"] = request["timestamp_utc"]
-		body["foods"].([]any)[0].(map[string]any)["id"] = float64(foodID)
+		body["eaten_at"] = request["eaten_at"]
+		body["foods"].([]any)[0].(map[string]any)["food_id"] = foodID
 		s.log = body
 	case "listFoodLogs":
 		if s.log == nil {
-			body = map[string]any{"total_count": 0, "items": []any{}}
+			body = map[string]any{"items": []any{}}
 		} else {
-			body = map[string]any{"total_count": 1, "items": []any{s.log}}
+			body = map[string]any{"items": []any{s.log}}
+		}
+	case "getFoodLog":
+		if !strings.HasSuffix(r.URL.Path, logID) {
+			s.t.Error("read unknown log")
+		}
+		if s.log != nil {
+			body = s.log
 		}
 	case "updateFoodLog":
 		if !strings.HasSuffix(r.URL.Path, logID) {
@@ -260,16 +275,17 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, logID) {
 			s.t.Error("deleted unknown log")
 		}
-	case "mintClientToken":
+	case "createClientToken":
 		s.minted = true
 		body = map[string]any{"token": mockToken, "expires_in": 300, "expires_at": time.Now().UTC().Add(5 * time.Minute).Format(time.RFC3339Nano), "end_user_id": user, "scopes": []string{"foods:read"}}
 		if request["ttl_seconds"] != float64(300) {
 			s.t.Error("wrong TTL")
 		}
 	case "revokeClientTokens":
-		if len(data) > 0 {
+		if request["end_user_id"] != s.userID {
 			s.t.Error("revoke request body unexpected")
 		}
+		body = map[string]any{"revoked_count": 500}
 	}
 	mode := s.modes[id]
 	if mode == "disconnect" {
@@ -298,7 +314,6 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	if id == "revokeClientTokens" {
 		s.minted = false
-		w.Header().Set("X-Revoked-Count", "500")
 	}
 	w.WriteHeader(f.Response.Status)
 	if f.Response.Status != 204 {
@@ -306,9 +321,9 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func setFood(f map[string]any) {
-	f["id"] = float64(foodID)
+	f["id"] = foodID
 	for _, v := range f["servings"].([]any) {
-		v.(map[string]any)["id"] = float64(servingID)
+		v.(map[string]any)["id"] = servingID
 	}
 }
 func readReport(t *testing.T, root string) runReport {
@@ -331,7 +346,7 @@ func status(r runReport, label string) string {
 	}
 	return ""
 }
-func TestLiveWorkflowAll18Offline(t *testing.T) {
+func TestLiveWorkflowAll20Offline(t *testing.T) {
 	s := newFake(t, nil)
 	root := t.TempDir()
 	c := s.config(root)
@@ -341,7 +356,7 @@ func TestLiveWorkflowAll18Offline(t *testing.T) {
 		t.Fatal(out.String())
 	}
 	r := readReport(t, root)
-	if r.Status != "PASS" || r.Counts.Passed != 18 || r.Counts.Failed != 0 || r.Counts.Blocked != 0 || r.CleanupFailed != 0 {
+	if r.Status != "PASS" || r.Counts.Passed != 20 || r.Counts.Failed != 0 || r.Counts.Blocked != 0 || r.CleanupFailed != 0 {
 		t.Fatalf("wrong counts: %+v", r.Counts)
 	}
 	for _, f := range s.fixtures {
@@ -362,15 +377,15 @@ func TestLiveWorkflowAll18Offline(t *testing.T) {
 func TestFailureCleanupAndBlocked(t *testing.T) {
 	s := newFake(t, map[string]string{"searchFoods": "fail", "lookupFoodByBarcode": "fail", "scanFoodPhoto": "fail", "searchFoodsByNaturalLanguage": "fail"})
 	r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
-	if r.Status != "FAIL" || r.Counts.Blocked != 7 {
-		t.Fatalf("expected seven blocked: %+v", r.Counts)
+	if r.Status != "FAIL" || r.Counts.Blocked != 8 {
+		t.Fatalf("expected eight blocked: %+v", r.Counts)
 	}
-	for _, label := range []string{"foods.get", "foods.suggestAlternatives", "foodAnalysis.correct", "foodLogs.create", "foodLogs.update", "foodLogs.delete", "glucose.predict"} {
+	for _, label := range []string{"foods.get", "foods.suggestAlternatives", "foodAnalysis.correct", "foodLogs.create", "foodLogs.get", "foodLogs.update", "foodLogs.delete", "glucose.predict"} {
 		if status(r, label) != "BLOCKED" {
 			t.Error("dependency counted as success")
 		}
 	}
-	for _, label := range []string{"credits", "foods.autocomplete", "restaurants.search", "restaurants.searchMenuItems", "foodLogs.list", "mintClientToken", "revokeClientTokens"} {
+	for _, label := range []string{"credits", "foods.autocomplete", "restaurants.search", "restaurants.getMenuItems", "restaurants.searchMenuItems", "foodLogs.list", "createClientToken", "revokeClientTokens"} {
 		if status(r, label) != "PASS" {
 			t.Errorf("independent operation stopped: %s", label)
 		}
@@ -380,9 +395,9 @@ func TestFailureCleanupAndBlocked(t *testing.T) {
 	}
 }
 func TestAmbiguousMintCleanup(t *testing.T) {
-	s := newFake(t, map[string]string{"mintClientToken": "disconnect"})
+	s := newFake(t, map[string]string{"createClientToken": "disconnect"})
 	r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
-	if r.Status != "FAIL" || status(r, "mintClientToken") != "FAIL" || status(r, "revokeClientTokens") != "PASS" || s.count("mintClientToken") != 1 || s.count("revokeClientTokens") != 1 || s.minted {
+	if r.Status != "FAIL" || status(r, "createClientToken") != "FAIL" || status(r, "revokeClientTokens") != "PASS" || s.count("createClientToken") != 1 || s.count("revokeClientTokens") != 1 || s.minted {
 		t.Fatal("ambiguous mint cleanup failed")
 	}
 }
