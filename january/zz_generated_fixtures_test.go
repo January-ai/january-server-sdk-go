@@ -9,6 +9,24 @@ import (
 
 func invokeFixture(c *Client, id string, raw []byte) (any, *Response, error) {
 	switch id {
+	case "createClientToken":
+		var input CreateClientTokenRequest
+		if err := json.Unmarshal(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		return c.CreateClientToken(context.Background(), input)
+	case "revokeClientTokens":
+		var input RevokeClientTokensRequest
+		if err := json.Unmarshal(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		return c.RevokeClientTokens(context.Background(), input)
+	case "getCredits":
+		var input GetCreditsRequest
+		if err := json.Unmarshal(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		return c.GetCredits(context.Background(), input)
 	case "searchFoods":
 		var input SearchFoodsRequest
 		if err := json.Unmarshal(raw, &input); err != nil {
@@ -45,6 +63,12 @@ func invokeFixture(c *Client, id string, raw []byte) (any, *Response, error) {
 			return nil, nil, err
 		}
 		return c.Restaurants.Search(context.Background(), input)
+	case "getRestaurantMenuItems":
+		var input GetRestaurantMenuItemsRequest
+		if err := json.Unmarshal(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		return c.Restaurants.GetMenuItems(context.Background(), input)
 	case "searchRestaurantMenuItems":
 		var input SearchRestaurantMenuItemsRequest
 		if err := json.Unmarshal(raw, &input); err != nil {
@@ -81,6 +105,12 @@ func invokeFixture(c *Client, id string, raw []byte) (any, *Response, error) {
 			return nil, nil, err
 		}
 		return c.FoodLogs.List(context.Background(), input)
+	case "getFoodLog":
+		var input GetFoodLogRequest
+		if err := json.Unmarshal(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		return c.FoodLogs.Get(context.Background(), input)
 	case "updateFoodLog":
 		var input UpdateFoodLogRequest
 		if err := json.Unmarshal(raw, &input); err != nil {
@@ -92,32 +122,14 @@ func invokeFixture(c *Client, id string, raw []byte) (any, *Response, error) {
 		if err := json.Unmarshal(raw, &input); err != nil {
 			return nil, nil, err
 		}
-		return c.FoodLogs.Delete(context.Background(), input)
+		response, err := c.FoodLogs.Delete(context.Background(), input)
+		return nil, response, err
 	case "predictGlucose":
 		var input PredictGlucoseRequest
 		if err := json.Unmarshal(raw, &input); err != nil {
 			return nil, nil, err
 		}
 		return c.Glucose.Predict(context.Background(), input)
-	case "mintClientToken":
-		var input MintClientTokenRequest
-		if err := json.Unmarshal(raw, &input); err != nil {
-			return nil, nil, err
-		}
-		return c.MintClientToken(context.Background(), input)
-	case "revokeClientTokens":
-		var input RevokeClientTokensRequest
-		if err := json.Unmarshal(raw, &input); err != nil {
-			return nil, nil, err
-		}
-		response, err := c.RevokeClientTokens(context.Background(), input)
-		return nil, response, err
-	case "credits":
-		var input CreditsRequest
-		if err := json.Unmarshal(raw, &input); err != nil {
-			return nil, nil, err
-		}
-		return c.Credits(context.Background(), input)
 	}
 	return nil, nil, fmt.Errorf("unknown fixture operation")
 }

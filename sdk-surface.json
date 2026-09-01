@@ -2,6 +2,24 @@
   "language": "go",
   "operations": [
     {
+      "operationId": "createClientToken",
+      "resource": null,
+      "method": "CreateClientToken",
+      "audience": "server"
+    },
+    {
+      "operationId": "revokeClientTokens",
+      "resource": null,
+      "method": "RevokeClientTokens",
+      "audience": "server"
+    },
+    {
+      "operationId": "getCredits",
+      "resource": null,
+      "method": "GetCredits",
+      "audience": "server"
+    },
+    {
       "operationId": "searchFoods",
       "resource": "Foods",
       "method": "Search",
@@ -35,6 +53,12 @@
       "operationId": "searchRestaurants",
       "resource": "Restaurants",
       "method": "Search",
+      "audience": "shared"
+    },
+    {
+      "operationId": "getRestaurantMenuItems",
+      "resource": "Restaurants",
+      "method": "GetMenuItems",
       "audience": "shared"
     },
     {
@@ -74,6 +98,12 @@
       "audience": "shared"
     },
     {
+      "operationId": "getFoodLog",
+      "resource": "FoodLogs",
+      "method": "Get",
+      "audience": "shared"
+    },
+    {
       "operationId": "updateFoodLog",
       "resource": "FoodLogs",
       "method": "Update",
@@ -90,24 +120,6 @@
       "resource": "Glucose",
       "method": "Predict",
       "audience": "shared"
-    },
-    {
-      "operationId": "mintClientToken",
-      "resource": null,
-      "method": "MintClientToken",
-      "audience": "server"
-    },
-    {
-      "operationId": "revokeClientTokens",
-      "resource": null,
-      "method": "RevokeClientTokens",
-      "audience": "server"
-    },
-    {
-      "operationId": "credits",
-      "resource": null,
-      "method": "Credits",
-      "audience": "server"
     }
   ]
 }
