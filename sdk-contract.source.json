@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "contractRepository": "January-ai/partner-api-contract",
-  "sourceCommit": "1c6e45b98b1f4cd255c4ce416b0ea3cc8e1ebe28",
+  "sourceCommit": "bf8ea9415cd7f8e34014a4fbde657e2c69cdffe4",
   "contractSha256": "634a84f81d9d1beabed96dafe9c7d584087ce9fa9efe08e99ff7028dc30d86d8",
   "generatorSha256": "4b7057b81003b09f1bfa7881b88bf050d3a4a80291438d7ff2c7e4fa19104dc8",
   "fixturesSha256": "0dcaa98385a989a90cf99cd9b5919cfd4769caa3fb067d933de48d7daffdd51e"
