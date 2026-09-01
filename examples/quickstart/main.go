@@ -50,11 +50,15 @@ func run(stdout, stderr io.Writer) int {
 		printSearchFailure(stderr, err)
 		return 1
 	}
-	fmt.Fprintf(stdout, "Found %.0f foods.\n", foods.TotalCount)
+	fmt.Fprintf(stdout, "Found %d foods.\n", len(foods.Items))
 	if len(foods.Items) == 0 {
 		fmt.Fprintln(stdout, "No results.")
 	} else {
-		fmt.Fprintf(stdout, "First food: %s\n", foods.Items[0].Name)
+		name := "(unnamed)"
+		if foods.Items[0].Name != nil {
+			name = *foods.Items[0].Name
+		}
+		fmt.Fprintf(stdout, "First food: %s\n", name)
 	}
 	return 0
 }

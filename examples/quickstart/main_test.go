@@ -78,17 +78,17 @@ func TestQuickstartExecutable(t *testing.T) {
 	}{
 		{
 			name: "success", key: fakeKey, status: 200,
-			body:       `{"total_count":1,"items":[{"id":42,"name":"Banana","nutrients":{},"servings":[]}]}`,
+			body:       `{"items":[{"id":"42","type":"generic","name":"Banana","brand_name":null,"nutrients":{},"glycemic_index":null,"glycemic_load":null,"image_url":null,"barcode":null,"servings":[]}]}`,
 			wantOutput: "Found 1 foods.\nFirst food: Banana\n", wantCalls: 1,
 		},
 		{
 			name: "dotenv_success", envFile: "# Local key\nJANUARY_API_KEY=' " + fakeKey + " '\n", status: 200,
-			body:       `{"total_count":1,"items":[{"id":42,"name":"Banana","nutrients":{},"servings":[]}]}`,
+			body:       `{"items":[{"id":"42","type":"generic","name":"Banana","brand_name":null,"nutrients":{},"glycemic_index":null,"glycemic_load":null,"image_url":null,"barcode":null,"servings":[]}]}`,
 			wantOutput: "Found 1 foods.\nFirst food: Banana\n", wantCalls: 1,
 		},
 		{
 			name: "environment_takes_precedence", key: fakeKey, envFile: "JANUARY_API_KEY=sk-fake-file-key\n", status: 200,
-			body:       `{"total_count":1,"items":[{"id":42,"name":"Banana","nutrients":{},"servings":[]}]}`,
+			body:       `{"items":[{"id":"42","type":"generic","name":"Banana","brand_name":null,"nutrients":{},"glycemic_index":null,"glycemic_load":null,"image_url":null,"barcode":null,"servings":[]}]}`,
 			wantOutput: "Found 1 foods.\nFirst food: Banana\n", wantCalls: 1,
 		},
 		{
@@ -105,7 +105,7 @@ func TestQuickstartExecutable(t *testing.T) {
 		},
 		{
 			name: "no_results", key: fakeKey, status: 200,
-			body:       `{"total_count":0,"items":[]}`,
+			body:       `{"items":[]}`,
 			wantOutput: "Found 0 foods.\nNo results.\n", wantCalls: 1,
 		},
 		{
@@ -163,8 +163,8 @@ func TestQuickstartExecutable(t *testing.T) {
 				if r.Method != http.MethodGet || r.URL.Path != "/v1.2/foods" || r.URL.RawQuery != "query=banana" {
 					t.Error("expected exactly the banana food-search request")
 				}
-				if r.Header.Get("Authorization") != "Bearer "+fakeKey || r.Header.Get("X-End-User-ID") != "january-quickstart" {
-					t.Error("expected synthetic credential and quickstart user")
+				if r.Header.Get("Authorization") != "Bearer "+fakeKey {
+					t.Error("expected synthetic credential")
 				}
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("X-Request-ID", tt.requestID)
@@ -325,11 +325,11 @@ func TestFreshConsumerWorkflow(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		if r.Method != http.MethodGet || r.URL.Path != "/v1.2/foods" || r.URL.RawQuery != "query=banana" ||
-			r.Header.Get("Authorization") != "Bearer sk-fresh-consumer-fixture" || r.Header.Get("X-End-User-ID") != "january-quickstart" {
+			r.Header.Get("Authorization") != "Bearer sk-fresh-consumer-fixture" {
 			t.Error("fresh consumer did not send the expected synthetic banana search")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `{"total_count":1,"items":[{"id":42,"name":"Banana","nutrients":{},"servings":[]}]}`)
+		_, _ = io.WriteString(w, `{"items":[{"id":"42","type":"generic","name":"Banana","brand_name":null,"nutrients":{},"glycemic_index":null,"glycemic_load":null,"image_url":null,"barcode":null,"servings":[]}]}`)
 	}))
 	defer server.Close()
 	command := exec.CommandContext(ctx, "go", "run", ".", server.URL)

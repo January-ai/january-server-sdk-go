@@ -64,10 +64,10 @@ func equalJSON(t *testing.T, a, b []byte) {
 		t.Errorf("JSON mismatch:\ngot %s\nwant %s", a, b)
 	}
 }
-func TestAll18ContractFixtures(t *testing.T) {
+func TestAll20ContractFixtures(t *testing.T) {
 	bundle := fixtures(t)
-	if len(bundle.Operations) != 18 {
-		t.Fatalf("expected 18 fixtures, got %d", len(bundle.Operations))
+	if len(bundle.Operations) != 20 {
+		t.Fatalf("expected 20 fixtures, got %d", len(bundle.Operations))
 	}
 	for _, fixture := range bundle.Operations {
 		t.Run(fixture.OperationID, func(t *testing.T) {
@@ -154,11 +154,7 @@ func TestAll18ContractFixtures(t *testing.T) {
 			if metadata.StatusCode != fixture.Response.Status || metadata.RequestID == "" {
 				t.Fatalf("missing response metadata: %#v", metadata)
 			}
-			if fixture.Response.Status == 204 {
-				if metadata.RevokedCount == nil || *metadata.RevokedCount != 3 {
-					t.Fatal("missing revoked count")
-				}
-			} else {
+			if fixture.Response.Status != 204 {
 				resultJSON, err := json.Marshal(result)
 				if err != nil {
 					t.Fatal(err)
@@ -182,7 +178,7 @@ func TestErrorFixturesWithRetriesDisabled(t *testing.T) {
 			}))
 			defer server.Close()
 			c, _ := NewClient(Config{SecretKey: "sk-test", BaseURL: server.URL, MaxRetries: Value(0)})
-			_, metadata, err := c.Credits(context.Background())
+			_, metadata, err := c.GetCredits(context.Background())
 			var apiErr *APIError
 			if !errors.As(err, &apiErr) {
 				t.Fatalf("expected APIError, got %v", err)
@@ -203,7 +199,7 @@ func TestErrorFixturesWithRetriesDisabled(t *testing.T) {
 	}
 }
 func TestUnknownEnumsNullAndUnset(t *testing.T) {
-	var token ClientTokenResponseDto
+	var token ClientToken
 	if err := json.Unmarshal([]byte(`{"token":"ct-secret","expires_in":300,"expires_at":"later","end_user_id":"a","scopes":["future:scope"],"new_field":true}`), &token); err != nil {
 		t.Fatal(err)
 	}
@@ -242,19 +238,19 @@ func TestUncappedCredits(t *testing.T) {
 	}))
 	defer server.Close()
 	c, _ := NewClient(Config{SecretKey: "sk-test", BaseURL: server.URL})
-	result, _, err := c.Credits(context.Background())
+	result, _, err := c.GetCredits(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.RemainingCredits.IsSet() || result.IncludedCredits.IsSet() {
+	if result.RemainingCredits != nil || result.IncludedCredits != nil {
 		t.Fatal("uncapped credits must be absent, not zero")
 	}
 }
 func TestConcurrentUserIsolation(t *testing.T) {
 	var seen sync.Map
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		seen.Store(r.Header.Get("X-End-User-ID"), true)
-		_, _ = io.WriteString(w, `{"total_count":0,"items":[]}`)
+		seen.Store(r.Header.Get("January-End-User-ID"), true)
+		_, _ = io.WriteString(w, `{"items":[]}`)
 	}))
 	defer server.Close()
 	c, _ := NewClient(Config{SecretKey: "sk-test", BaseURL: server.URL})
@@ -271,7 +267,7 @@ func TestConcurrentUserIsolation(t *testing.T) {
 		wg.Add(1)
 		go func(u *UserClient) {
 			defer wg.Done()
-			_, _, err := u.Foods.Search(context.Background(), SearchFoodsRequest{Query: "banana", EndUserID: "attacker"})
+			_, _, err := u.FoodLogs.List(context.Background(), ListFoodLogsRequest{StartDate: "2026-08-01", EndDate: "2026-08-01", Timezone: "UTC"})
 			if err != nil {
 				t.Error(err)
 			}
@@ -289,7 +285,7 @@ func TestConcurrentUserIsolation(t *testing.T) {
 	if count != 20 {
 		t.Fatalf("expected 20 distinct identities, got %d", count)
 	}
-	_, _, err := c.Foods.Search(context.Background(), SearchFoodsRequest{Query: "banana"})
+	_, _, err := c.FoodLogs.List(context.Background(), ListFoodLogsRequest{StartDate: "2026-08-01", EndDate: "2026-08-01", Timezone: "UTC"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +293,7 @@ func TestConcurrentUserIsolation(t *testing.T) {
 		t.Fatal("root client was mutated")
 	}
 	typ := reflect.TypeOf(&UserClient{})
-	for _, method := range []string{"MintClientToken", "RevokeClientTokens", "Credits"} {
+	for _, method := range []string{"CreateClientToken", "RevokeClientTokens", "GetCredits"} {
 		if _, ok := typ.MethodByName(method); ok {
 			t.Fatalf("privileged method on user view: %s", method)
 		}
@@ -314,13 +310,13 @@ func TestCancellationTimeoutAndInjectedClient(t *testing.T) {
 	if injected.CheckRedirect != nil || injected.Timeout != time.Second {
 		t.Fatal("injected client mutated")
 	}
-	_, _, err = c.Credits(context.Background())
+	_, _, err = c.GetCredits(context.Background())
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("timeout cause lost: %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, _, err = c.Credits(ctx)
+	_, _, err = c.GetCredits(ctx)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancellation cause lost: %v", err)
 	}
@@ -332,16 +328,16 @@ func TestPathEncodingAndDescriptionParameter(t *testing.T) {
 			if r.URL.EscapedPath() != "/v1.2/food-logs/a%2Fb%3F%23%252F" {
 				t.Errorf("unsafe path: %s", r.URL.EscapedPath())
 			}
-			_, _ = io.WriteString(w, `{"status":"deleted"}`)
+			w.WriteHeader(http.StatusNoContent)
 		} else {
 			b, _ := io.ReadAll(r.Body)
 			equalJSON(t, b, []byte(`{"text":"two eggs"}`))
-			_, _ = io.WriteString(w, `{"detections":[]}`)
+			_, _ = io.WriteString(w, `{"meal_name":null,"total_nutrients":{},"detections":[]}`)
 		}
 	}))
 	defer server.Close()
 	c, _ := NewClient(Config{SecretKey: "sk-test", BaseURL: server.URL})
-	_, _, err := c.FoodLogs.Delete(context.Background(), DeleteFoodLogRequest{LogID: "a/b?#%2F", EndUserID: "u"})
+	_, err := c.FoodLogs.Delete(context.Background(), DeleteFoodLogRequest{LogID: "a/b?#%2F", EndUserID: Value(PartnerUserID("u"))})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -360,17 +356,17 @@ func TestSecretSafetyAndSingleRevoke(t *testing.T) {
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
-		w.Header().Set("X-Revoked-Count", "500")
-		w.WriteHeader(204)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"revoked_count":500}`)
 	}))
 	defer server.Close()
 	c, _ := NewClient(Config{SecretKey: "sk-secret", BaseURL: server.URL})
-	metadata, err := c.RevokeClientTokens(context.Background(), RevokeClientTokensRequest{EndUserID: "u ?&#"})
+	result, metadata, err := c.RevokeClientTokens(context.Background(), RevokeClientTokensRequest{EndUserID: "u ?&#"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if requests.Load() != 1 || metadata.RevokedCount == nil || *metadata.RevokedCount != 500 {
-		t.Fatal("revocation must make ONE DELETE even at the server batch limit")
+	if requests.Load() != 1 || result == nil || result.RevokedCount != 500 || metadata == nil {
+		t.Fatal("revocation must make one request and return its count")
 	}
 	if strings.Contains(fmt.Sprintf("%#v", c), "sk-secret") {
 		t.Fatal("client secret leaked")
@@ -386,7 +382,7 @@ func TestRedirectDoesNotForwardSecret(t *testing.T) {
 	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, 307) }))
 	defer redirect.Close()
 	c, _ := NewClient(Config{SecretKey: "sk-secret", BaseURL: redirect.URL})
-	_, _, err := c.Credits(context.Background())
+	_, _, err := c.GetCredits(context.Background())
 	var apiErr *APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != 307 || targetCalls.Load() != 0 {
 		t.Fatal("redirect forwarded credential")

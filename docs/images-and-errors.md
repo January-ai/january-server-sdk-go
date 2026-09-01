@@ -56,7 +56,7 @@ or an HTTP date; excessive waits return the error with `RetryNote` immediately.
 
 ## Tests and release
 
-`go test -race ./...` covers all 18 generated operations, portion calculations,
+`go test -race ./...` covers all 20 generated operations, portion calculations,
 errors/retries, photos, quickstart, and a real installed module consumer against
 loopback HTTP. `go run ./examples/live` is the separate, billable production check;
 it reads the key from `.env` and disables retries. Offline tests are not production

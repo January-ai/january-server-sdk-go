@@ -79,15 +79,3 @@ type CreateClientTokenInput struct {
 type ClientTokenIssuer interface {
 	Create(context.Context, CreateClientTokenInput) (ClientToken, error)
 }
-
-// ClientToken retains the prototype JSON shape; canonical operations use generated types.
-type ClientToken struct {
-	Token       string `json:"token"`
-	AccessToken string `json:"-"`
-	TokenType   string `json:"-"`
-	ExpiresIn   int    `json:"expiresIn"`
-	ExpiresAt   string `json:"-"`
-}
-
-func (t ClientToken) String() string   { return "january.ClientToken{token:[REDACTED]}" }
-func (t ClientToken) GoString() string { return t.String() }

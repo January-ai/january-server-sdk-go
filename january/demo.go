@@ -47,10 +47,10 @@ func (d *demoClientTokenIssuer) Create(_ context.Context, input CreateClientToke
 	}
 	expiresAt := d.now().UTC().Add(d.expiresIn)
 	return ClientToken{
-		Token:       d.accessToken,
-		AccessToken: d.accessToken,
-		TokenType:   "Bearer",
-		ExpiresIn:   int(d.expiresIn / time.Second),
-		ExpiresAt:   expiresAt.Format("2006-01-02T15:04:05.000Z"),
+		Token:     d.accessToken,
+		ExpiresIn: int64(d.expiresIn / time.Second),
+		ExpiresAt: expiresAt.Format("2006-01-02T15:04:05.000Z"),
+		EndUserID: strings.TrimSpace(input.EndUserID),
+		Scopes:    append([]string(nil), input.Scopes...),
 	}, nil
 }

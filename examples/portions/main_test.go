@@ -78,8 +78,8 @@ var intercepted = errors.New("offline request intercepted")
 type offlineTransport struct { calls int }
 func (t *offlineTransport) RoundTrip(r *http.Request) (*http.Response, error) {
     t.calls++
-    if r.Method != "POST" || r.URL.String() != "https://partners.january.ai/v1.2/glucose/predictions" ||
-        r.Header.Get("Authorization") != "Bearer sk-readme-offline-fixture" || r.Header.Get("X-End-User-ID") != "january-quickstart" {
+	if r.Method != "POST" || r.URL.String() != "https://partners.january.ai/v1.2/glucose/predictions" ||
+		r.Header.Get("Authorization") != "Bearer sk-readme-offline-fixture" {
         return nil, errors.New("unexpected prediction request")
     }
     return nil, intercepted
@@ -115,8 +115,10 @@ func verify(food january.FoodSearchItem) error {
     return nil
 }
 func main() {
-    food := january.FoodSearchItem{ID: 42, Name: "Synthetic food", Servings: []january.ServingOption{
-        {ID: 2, Quantity: 1, Unit: "piece", ScalingFactor: 1, IsPrimary: true},
+    name, id, unit := "Synthetic food", "2", "piece"
+    quantity, scaling, primary := 1.0, 1.0, true
+    food := january.FoodSearchItem{ID: "42", Name: &name, Servings: []january.ServingOption{
+        {ID: &id, Quantity: &quantity, Unit: &unit, ScalingFactor: &scaling, IsPrimary: &primary},
     }}
     if err := verify(food); err != nil { fmt.Fprintln(os.Stderr, err); os.Exit(1) }
     fmt.Println("Exact README FoodPortion prediction passed SDK validation; incomplete requests rejected; no network.")
@@ -137,7 +139,7 @@ func TestPortionExecutableOffline(t *testing.T) {
 	}
 	output := runOfflineExample(t, string(source))
 	const want = "Offline portion: 600 kcal, protein 0 g, weight 240 g; missing fiber preserved.\n" +
-		"Log/glucose selection: {\"id\":42,\"serving\":{\"id\":2,\"quantity\":4}}\n"
+		"Log/glucose selection: {\"food_id\":\"42\",\"quantity\":4,\"serving_id\":\"2\"}\n"
 	if output != want {
 		t.Fatal("unexpected portion executable output")
 	}

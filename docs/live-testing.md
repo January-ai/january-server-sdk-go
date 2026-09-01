@@ -3,14 +3,14 @@
 All commands below run from the Go SDK root. [Back to the README](../README.md).
 
 This is a real, credit-consuming integration run, not a mock and not part of default
-tests or CI. It uses the SDK's built-in production endpoint and exercises all 18
+tests or CI. It uses the SDK's built-in production endpoint and exercises all 20
 SDK operations using synthetic data. No UI is needed.
 
 From a fresh checkout, copy `.env.example` to `.env` **only if `.env` does not already
 exist**, then set `JANUARY_API_KEY` in `.env`. Never overwrite an existing `.env`.
 Both `.env` and `.e2e-results/` are ignored; only `.env.example` is tracked.
 
-Before running the all-18-operations command below, complete the
+Before running the all-20-operations command below, complete the
 [account, organization, API key, and billing prerequisites](../README.md#before-you-begin)
 and choose **Enable client tokens** in the
 [Client tokens dashboard](https://dashboard.january.ai/dashboard/client-tokens).
@@ -63,7 +63,7 @@ is asserted because server caches may take 60 seconds to expire.
 Output contains only operation labels, statuses, safe codes/request IDs, and static
 blocked reasons. A safe report with durations and counts is written atomically to
 `.e2e-results/latest.json`; it contains no key, token, user ID, food text, or response
-body. Exit is zero only if all 18 operations and cleanup pass. Hard process termination
+body. Exit is zero only if all 20 operations and cleanup pass. Hard process termination
 or machine failure can prevent final cleanup; use ordinary Ctrl-C for bounded cleanup.
 
 Offline runner-only tests use a test-owned client constructor with localhost

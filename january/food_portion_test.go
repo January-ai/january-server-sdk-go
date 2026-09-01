@@ -12,15 +12,17 @@ import (
 func portionTestFood() FoodSearchItem {
 	primaryWeight, alternateWeight := 50.0, 120.0
 	return FoodSearchItem{
-		ID: 42, Name: "Test food",
+		ID: "42", Name: portionPointer("Test food"),
 		Nutrients:     NutritionFacts{Calories: Value(NutrientAmount{Value: 100, Unit: "cal"}), Protein: Value(NutrientAmount{Value: 10, Unit: "g"})},
-		GlycemicIndex: Value(50.0), GlycemicLoad: Value(8.0),
+		GlycemicIndex: portionPointer(50.0), GlycemicLoad: portionPointer(8.0),
 		Servings: []ServingOption{
-			{ID: 1, Quantity: 1, Unit: "slice", ScalingFactor: 1, WeightGrams: &primaryWeight, IsPrimary: true},
-			{ID: 2, Quantity: 2, Unit: "pieces", ScalingFactor: 3, WeightGrams: &alternateWeight},
+			{ID: portionPointer("1"), Quantity: portionPointer(1.0), Unit: portionPointer("slice"), ScalingFactor: portionPointer(1.0), WeightGrams: &primaryWeight, IsPrimary: portionPointer(true)},
+			{ID: portionPointer("2"), Quantity: portionPointer(2.0), Unit: portionPointer("pieces"), ScalingFactor: portionPointer(3.0), WeightGrams: &alternateWeight},
 		},
 	}
 }
+
+func portionPointer[T any](value T) *T { return &value }
 
 func requirePortion(t *testing.T, food FoodSearchItem, options FoodPortionOptions) *FoodPortion {
 	t.Helper()
@@ -52,24 +54,24 @@ func TestFoodPortionClientPrimary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.FoodID != 42 || p.Serving.ID != 1 || p.Quantity != 1 {
+	if p.FoodID != "42" || p.Serving.ID == nil || *p.Serving.ID != "1" || p.Quantity != 1 {
 		t.Fatal("wrong default serving")
 	}
 	requirePortionAmount(t, p.Nutrition.Calories, 100, "cal")
-	want := FoodLogInputFood{ID: 42, Serving: FoodLogInputServing{ID: 1, Quantity: 1}}
+	want := FoodLogInputFood{FoodID: "42", ServingID: "1", Quantity: 1}
 	if p.Selection != want {
 		t.Fatal("wrong request-ready selection")
 	}
 }
 
 func TestFoodPortionClientAlternate(t *testing.T) {
-	p := requirePortion(t, portionTestFood(), FoodPortionOptions{ServingID: Value(ServingID(2)), Quantity: Value(4.0)})
+	p := requirePortion(t, portionTestFood(), FoodPortionOptions{ServingID: Value(ServingID("2")), Quantity: Value(4.0)})
 	requirePortionAmount(t, p.Nutrition.Calories, 600, "cal")
 	requirePortionAmount(t, p.Nutrition.Protein, 60, "g")
 	requirePortionNumber(t, p.TotalWeightGrams, 240)
 	requirePortionNumber(t, p.GlycemicIndex, 50)
 	requirePortionNumber(t, p.GlycemicLoad, 48)
-	if p.Serving.Quantity != 2 || p.Quantity != 4 {
+	if p.Serving.Quantity == nil || *p.Serving.Quantity != 2 || p.Quantity != 4 {
 		t.Fatal("serving metadata was replaced by requested quantity")
 	}
 	logRequest := CreateFoodLogRequest{Foods: []FoodLogInputFood{p.Selection}}
@@ -81,16 +83,16 @@ func TestFoodPortionClientAlternate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	equalJSON(t, encoded, []byte(`{"id":42,"serving":{"id":2,"quantity":4}}`))
+	equalJSON(t, encoded, []byte(`{"food_id":"42","serving_id":"2","quantity":4}`))
 }
 
 func TestFoodPortionIOSReference(t *testing.T) {
 	weight := 100.0
-	food := FoodSearchItem{ID: 70381819, Name: "banana", Nutrients: NutritionFacts{
+	food := FoodSearchItem{ID: "70381819", Name: portionPointer("banana"), Nutrients: NutritionFacts{
 		Calories: Value(NutrientAmount{Value: 105.02, Unit: "cal"}), Protein: Value(NutrientAmount{Value: 1.2862, Unit: "g"}),
 		Carbohydrates: Value(NutrientAmount{Value: 26.9512, Unit: "g"}), Potassium: Value(NutrientAmount{Value: 422, Unit: "mg"}),
-	}, GlycemicIndex: Value(51.0), GlycemicLoad: Value(12.0), Servings: []ServingOption{{ID: 2, Quantity: 100, Unit: "g", ScalingFactor: 0.8474576271, WeightGrams: &weight}}}
-	p := requirePortion(t, food, FoodPortionOptions{ServingID: Value(ServingID(2)), Quantity: Value(200.0)})
+	}, GlycemicIndex: portionPointer(51.0), GlycemicLoad: portionPointer(12.0), Servings: []ServingOption{{ID: portionPointer("2"), Quantity: portionPointer(100.0), Unit: portionPointer("g"), ScalingFactor: portionPointer(0.8474576271), WeightGrams: &weight}}}
+	p := requirePortion(t, food, FoodPortionOptions{ServingID: Value(ServingID("2")), Quantity: Value(200.0)})
 	requirePortionAmount(t, p.Nutrition.Calories, 178, "cal")
 	requirePortionAmount(t, p.Nutrition.Protein, 2.18, "g")
 	requirePortionAmount(t, p.Nutrition.Carbohydrates, 45.68, "g")
@@ -103,27 +105,27 @@ func TestFoodPortionIOSReference(t *testing.T) {
 func TestFoodPortionDefaultFallback(t *testing.T) {
 	t.Run("first primary", func(t *testing.T) {
 		food := portionTestFood()
-		food.Servings[0].IsPrimary = false
-		food.Servings[1].IsPrimary = true
-		food.Servings = append(food.Servings, ServingOption{ID: 3, Quantity: 1, ScalingFactor: 1, IsPrimary: true})
+		food.Servings[0].IsPrimary = portionPointer(false)
+		food.Servings[1].IsPrimary = portionPointer(true)
+		food.Servings = append(food.Servings, ServingOption{ID: portionPointer("3"), Quantity: portionPointer(1.0), ScalingFactor: portionPointer(1.0), IsPrimary: portionPointer(true)})
 		p := requirePortion(t, food, FoodPortionOptions{})
-		if p.Serving.ID != 2 || p.Quantity != 2 {
+		if p.Serving.ID == nil || *p.Serving.ID != "2" || p.Quantity != 2 {
 			t.Fatal("did not select first primary/default quantity")
 		}
 		requirePortionAmount(t, p.Nutrition.Calories, 300, "cal")
 	})
 	t.Run("first when no primary", func(t *testing.T) {
 		food := portionTestFood()
-		food.Servings[0].IsPrimary = false
+		food.Servings[0].IsPrimary = portionPointer(false)
 		p := requirePortion(t, food, FoodPortionOptions{})
-		if p.Serving.ID != 1 {
+		if p.Serving.ID == nil || *p.Serving.ID != "1" {
 			t.Fatal("did not fall back to first serving")
 		}
 	})
 	t.Run("first exact ID match", func(t *testing.T) {
 		food := portionTestFood()
-		food.Servings = append(food.Servings, ServingOption{ID: 2, Quantity: 10, ScalingFactor: 1})
-		p := requirePortion(t, food, FoodPortionOptions{ServingID: Value(ServingID(2))})
+		food.Servings = append(food.Servings, ServingOption{ID: portionPointer("2"), Quantity: portionPointer(10.0), ScalingFactor: portionPointer(1.0)})
+		p := requirePortion(t, food, FoodPortionOptions{ServingID: Value(ServingID("2"))})
 		if p.Quantity != 2 {
 			t.Fatal("did not select first exact match")
 		}
@@ -147,7 +149,7 @@ func TestFoodPortionAllNutrients(t *testing.T) {
 	if err = json.Unmarshal(encoded, &food.Nutrients); err != nil {
 		t.Fatal(err)
 	}
-	p := requirePortion(t, food, FoodPortionOptions{ServingID: Value(ServingID(2)), Quantity: Value(0.5)})
+	p := requirePortion(t, food, FoodPortionOptions{ServingID: Value(ServingID("2")), Quantity: Value(0.5)})
 	encoded, err = json.Marshal(p.Nutrition)
 	if err != nil {
 		t.Fatal(err)
@@ -169,8 +171,8 @@ func TestFoodPortionAllNutrients(t *testing.T) {
 func TestFoodPortionMissingAndZero(t *testing.T) {
 	food := portionTestFood()
 	food.Nutrients = NutritionFacts{Protein: Value(NutrientAmount{Value: 0, Unit: "g"})}
-	food.GlycemicIndex = Optional[float64]{}
-	food.GlycemicLoad = Optional[float64]{}
+	food.GlycemicIndex = nil
+	food.GlycemicLoad = nil
 	food.Servings[0].WeightGrams = nil
 	p := requirePortion(t, food, FoodPortionOptions{Quantity: Value(2.0)})
 	requirePortionAmount(t, p.Nutrition.Protein, 0, "g")
@@ -191,8 +193,8 @@ func TestFoodPortionMissingAndZero(t *testing.T) {
 	equalJSON(t, encoded, []byte(`{}`))
 	zero := 0.0
 	food.Servings[0].WeightGrams = &zero
-	food.GlycemicIndex = Value(0.0)
-	food.GlycemicLoad = Value(0.0)
+	food.GlycemicIndex = portionPointer(0.0)
+	food.GlycemicLoad = portionPointer(0.0)
 	p = requirePortion(t, food, FoodPortionOptions{})
 	requirePortionNumber(t, p.TotalWeightGrams, 0)
 	requirePortionNumber(t, p.GlycemicIndex, 0)
@@ -208,10 +210,10 @@ func TestFoodPortionInvalidInputs(t *testing.T) {
 	}{
 		{name: "no servings", modify: func(f *FoodSearchItem) { f.Servings = nil }, code: FoodPortionNoServings},
 		{name: "empty servings", modify: func(f *FoodSearchItem) { f.Servings = []ServingOption{} }, code: FoodPortionNoServings},
-		{name: "unknown serving", options: FoodPortionOptions{ServingID: Value(ServingID(999))}, code: FoodPortionServingNotFound},
+		{name: "unknown serving", options: FoodPortionOptions{ServingID: Value(ServingID("999"))}, code: FoodPortionServingNotFound},
 		{name: "explicit null serving", options: FoodPortionOptions{ServingID: Null[ServingID]()}, code: FoodPortionServingNotFound},
 		{name: "explicit null quantity", options: FoodPortionOptions{Quantity: Null[float64]()}, code: FoodPortionInvalidQuantity},
-		{name: "default quantity too large", modify: func(f *FoodSearchItem) { f.Servings[0].Quantity = 10001 }, code: FoodPortionInvalidQuantity},
+		{name: "default quantity too large", modify: func(f *FoodSearchItem) { f.Servings[0].Quantity = portionPointer(10001.0) }, code: FoodPortionInvalidQuantity},
 	}
 	for _, bad := range []struct {
 		name  string
@@ -230,13 +232,13 @@ func TestFoodPortionInvalidInputs(t *testing.T) {
 				modify  func(*FoodSearchItem)
 				options FoodPortionOptions
 				code    FoodPortionErrorCode
-			}{name: "serving quantity " + bad.name, modify: func(f *FoodSearchItem) { f.Servings[0].Quantity = value }, code: FoodPortionInvalidServing},
+			}{name: "serving quantity " + bad.name, modify: func(f *FoodSearchItem) { f.Servings[0].Quantity = portionPointer(value) }, code: FoodPortionInvalidServing},
 			struct {
 				name    string
 				modify  func(*FoodSearchItem)
 				options FoodPortionOptions
 				code    FoodPortionErrorCode
-			}{name: "scaling factor " + bad.name, modify: func(f *FoodSearchItem) { f.Servings[0].ScalingFactor = value }, code: FoodPortionInvalidServing},
+			}{name: "scaling factor " + bad.name, modify: func(f *FoodSearchItem) { f.Servings[0].ScalingFactor = portionPointer(value) }, code: FoodPortionInvalidServing},
 		)
 	}
 	tests = append(tests, struct {
@@ -263,7 +265,7 @@ func TestFoodPortionInvalidInputs(t *testing.T) {
 func TestFoodPortionQuantityBoundaries(t *testing.T) {
 	for _, quantity := range []float64{0.125, 10000} {
 		p := requirePortion(t, portionTestFood(), FoodPortionOptions{Quantity: Value(quantity)})
-		if p.Quantity != quantity || p.Selection.Serving.Quantity != quantity {
+		if p.Quantity != quantity || p.Selection.Quantity != quantity {
 			t.Fatal("valid quantity changed")
 		}
 	}
@@ -285,8 +287,8 @@ func TestFoodPortionDoesNotMutate(t *testing.T) {
 	}
 	*p.Serving.WeightGrams = 999
 	p.Nutrition.Calories = Value(NutrientAmount{Value: 999, Unit: "changed"})
-	p.Selection.Serving.Quantity = 999
-	if *food.Servings[0].WeightGrams != 50 || food.Servings[0].Quantity != 1 {
+	p.Selection.Quantity = 999
+	if *food.Servings[0].WeightGrams != 50 || food.Servings[0].Quantity == nil || *food.Servings[0].Quantity != 1 {
 		t.Fatal("portion aliases source serving")
 	}
 	requirePortionAmount(t, food.Nutrients.Calories, 100, "cal")

@@ -2,6 +2,99 @@
   "formatVersion": 1,
   "operations": [
     {
+      "operationId": "createClientToken",
+      "method": "POST",
+      "path": "/v1.2/auth/client-tokens",
+      "resource": null,
+      "publicMethod": "createClientToken",
+      "audience": "server",
+      "parameterNames": {
+        "January-End-User-ID": "endUserId",
+        "x-end-user-id": "endUserId",
+        "x-end-user-timezone": "endUserTimezone"
+      },
+      "request": {
+        "body": {
+          "end_user_id": "sdk-fixture-user",
+          "scopes": [
+            "foods:read"
+          ],
+          "ttl_seconds": 1800
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "x-request-id": "request-createClientToken"
+        },
+        "body": {
+          "token": "fixture-client-token-not-a-credential",
+          "expires_in": 1800,
+          "expires_at": "2026-09-01T12:30:00Z",
+          "end_user_id": "sdk-fixture-user",
+          "scopes": [
+            "foods:read"
+          ]
+        }
+      }
+    },
+    {
+      "operationId": "revokeClientTokens",
+      "method": "POST",
+      "path": "/v1.2/auth/client-token-revocations",
+      "resource": null,
+      "publicMethod": "revokeClientTokens",
+      "audience": "server",
+      "parameterNames": {
+        "January-End-User-ID": "endUserId",
+        "x-end-user-id": "endUserId",
+        "x-end-user-timezone": "endUserTimezone"
+      },
+      "request": {
+        "body": {
+          "end_user_id": "sdk-fixture-user"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "x-request-id": "request-revokeClientTokens"
+        },
+        "body": {
+          "revoked_count": 2
+        }
+      }
+    },
+    {
+      "operationId": "getCredits",
+      "method": "GET",
+      "path": "/v1.2/credits",
+      "resource": null,
+      "publicMethod": "getCredits",
+      "audience": "server",
+      "parameterNames": {
+        "January-End-User-ID": "endUserId",
+        "x-end-user-id": "endUserId",
+        "x-end-user-timezone": "endUserTimezone"
+      },
+      "request": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "x-request-id": "request-getCredits"
+        },
+        "body": {
+          "plan": "free",
+          "period_start": "2026-09-01",
+          "period_end": "2026-09-30",
+          "resets_at": "2026-10-01T00:00:00Z",
+          "included_credits": 1000,
+          "used_credits": 342,
+          "remaining_credits": 658
+        }
+      }
+    },
+    {
       "operationId": "searchFoods",
       "method": "GET",
       "path": "/v1.2/foods",
@@ -9,6 +102,7 @@
       "publicMethod": "search",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
@@ -16,11 +110,8 @@
         "parameters": {
           "query": {
             "query": "banana",
-            "category": "branded",
+            "type": "branded",
             "limit": 10
-          },
-          "header": {
-            "x-end-user-id": "oren-sdk-test"
           }
         }
       },
@@ -30,59 +121,20 @@
           "x-request-id": "request-searchFoods"
         },
         "body": {
-          "total_count": 1,
           "items": [
             {
-              "id": 84222716,
+              "id": "84222716",
+              "type": "branded",
               "name": "Banana",
               "brand_name": "One",
-              "nutrients": {
-                "calories": {
-                  "value": 160,
-                  "unit": "calories"
-                },
-                "protein": {
-                  "value": 2,
-                  "unit": "grams"
-                },
-                "carbohydrates": {
-                  "value": 15,
-                  "unit": "grams"
-                },
-                "net_carbohydrates": {
-                  "value": 13,
-                  "unit": "grams"
-                },
-                "total_fat": {
-                  "value": 10,
-                  "unit": "grams"
-                },
-                "saturated_fat": {
-                  "value": 5,
-                  "unit": "grams"
-                },
-                "fiber": {
-                  "value": 2,
-                  "unit": "grams"
-                },
-                "total_sugars": {
-                  "value": 13,
-                  "unit": "grams"
-                },
-                "added_sugars": {
-                  "value": 11,
-                  "unit": "grams"
-                },
-                "sodium": {
-                  "value": 20,
-                  "unit": "milligrams"
-                }
-              },
+              "nutrients": {},
               "glycemic_index": 34.9,
               "glycemic_load": 5.2,
+              "image_url": null,
+              "barcode": "012345678905",
               "servings": [
                 {
-                  "id": 67943292,
+                  "id": "67943292",
                   "quantity": 1,
                   "unit": "bar",
                   "scaling_factor": 1,
@@ -103,6 +155,7 @@
       "publicMethod": "autocomplete",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
@@ -110,11 +163,8 @@
         "parameters": {
           "query": {
             "query": "ban",
-            "category": "general",
+            "type": "generic",
             "limit": 8
-          },
-          "header": {
-            "x-end-user-id": "oren-sdk-test"
           }
         }
       },
@@ -126,14 +176,12 @@
         "body": {
           "items": [
             {
-              "id": 70376053,
+              "id": "70376053",
+              "type": "generic",
               "name": "banana",
-              "nutrients": {
-                "calories": {
-                  "value": 105,
-                  "unit": "calories"
-                }
-              }
+              "brand_name": null,
+              "image_url": null,
+              "nutrients": {}
             }
           ]
         }
@@ -147,16 +195,14 @@
       "publicMethod": "suggestAlternatives",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
       "request": {
         "parameters": {
           "path": {
-            "food_id": 70372230
-          },
-          "header": {
-            "x-end-user-id": "oren-sdk-test"
+            "food_id": "70372230"
           }
         },
         "body": {
@@ -176,60 +222,17 @@
         "body": {
           "alternatives": [
             {
-              "food": {
-                "name": "brown rice",
-                "id": 70372230,
-                "brand_name": "",
-                "nutrients": {
-                  "calories": {
-                    "value": 109.2,
-                    "unit": "calories"
-                  },
-                  "protein": {
-                    "value": 2.3,
-                    "unit": "grams"
-                  },
-                  "carbohydrates": {
-                    "value": 22.9,
-                    "unit": "grams"
-                  },
-                  "net_carbohydrates": {
-                    "value": 21.1,
-                    "unit": "grams"
-                  },
-                  "total_fat": {
-                    "value": 0.8,
-                    "unit": "grams"
-                  },
-                  "saturated_fat": {
-                    "value": 0.2,
-                    "unit": "grams"
-                  },
-                  "fiber": {
-                    "value": 1.8,
-                    "unit": "grams"
-                  },
-                  "total_sugars": {
-                    "value": 0.4,
-                    "unit": "grams"
-                  },
-                  "added_sugars": {
-                    "value": 0,
-                    "unit": "grams"
-                  },
-                  "sodium": {
-                    "value": 5,
-                    "unit": "milligrams"
-                  }
-                },
-                "servings": [
-                  {
-                    "id": 34113801,
-                    "quantity": 0.5,
-                    "unit": "cup"
-                  }
-                ]
-              }
+              "id": "70372230",
+              "name": "brown rice",
+              "brand_name": null,
+              "nutrients": {},
+              "servings": [
+                {
+                  "id": "34113801",
+                  "quantity": 0.5,
+                  "unit": "cup"
+                }
+              ]
             }
           ]
         }
@@ -238,21 +241,19 @@
     {
       "operationId": "lookupFoodByBarcode",
       "method": "GET",
-      "path": "/v1.2/foods/barcode/{upc}",
+      "path": "/v1.2/foods/barcode/{barcode}",
       "resource": "foods",
       "publicMethod": "lookupBarcode",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
       "request": {
         "parameters": {
           "path": {
-            "upc": "012345678905"
-          },
-          "header": {
-            "x-end-user-id": "oren-sdk-test"
+            "barcode": "012345678905"
           }
         }
       },
@@ -262,42 +263,23 @@
           "x-request-id": "request-lookupFoodByBarcode"
         },
         "body": {
-          "total_count": 1,
-          "items": [
+          "id": "84222716",
+          "type": "branded",
+          "name": "Banana",
+          "brand_name": "One",
+          "nutrients": {},
+          "glycemic_index": 34.9,
+          "glycemic_load": 5.2,
+          "image_url": null,
+          "barcode": "012345678905",
+          "servings": [
             {
-              "id": 84222716,
-              "name": "Banana",
-              "brand_name": "One",
-              "nutrients": {
-                "calories": {
-                  "value": 160,
-                  "unit": "calories"
-                },
-                "protein": {
-                  "value": 2,
-                  "unit": "grams"
-                },
-                "carbohydrates": {
-                  "value": 15,
-                  "unit": "grams"
-                },
-                "total_fat": {
-                  "value": 10,
-                  "unit": "grams"
-                }
-              },
-              "glycemic_index": 34.9,
-              "glycemic_load": 5.2,
-              "servings": [
-                {
-                  "id": 67943292,
-                  "quantity": 1,
-                  "unit": "bar",
-                  "scaling_factor": 1,
-                  "weight_grams": 60,
-                  "is_primary": true
-                }
-              ]
+              "id": "67943292",
+              "quantity": 1,
+              "unit": "bar",
+              "scaling_factor": 1,
+              "weight_grams": 60,
+              "is_primary": true
             }
           ]
         }
@@ -311,16 +293,14 @@
       "publicMethod": "get",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
       "request": {
         "parameters": {
           "path": {
-            "food_id": 84222716
-          },
-          "header": {
-            "x-end-user-id": "oren-sdk-test"
+            "food_id": "84222716"
           }
         }
       },
@@ -330,56 +310,18 @@
           "x-request-id": "request-getFood"
         },
         "body": {
-          "id": 84222716,
+          "id": "84222716",
+          "type": "branded",
           "name": "Banana",
           "brand_name": "One",
-          "nutrients": {
-            "calories": {
-              "value": 160,
-              "unit": "calories"
-            },
-            "protein": {
-              "value": 2,
-              "unit": "grams"
-            },
-            "carbohydrates": {
-              "value": 15,
-              "unit": "grams"
-            },
-            "net_carbohydrates": {
-              "value": 13,
-              "unit": "grams"
-            },
-            "total_fat": {
-              "value": 10,
-              "unit": "grams"
-            },
-            "saturated_fat": {
-              "value": 5,
-              "unit": "grams"
-            },
-            "fiber": {
-              "value": 2,
-              "unit": "grams"
-            },
-            "total_sugars": {
-              "value": 13,
-              "unit": "grams"
-            },
-            "added_sugars": {
-              "value": 11,
-              "unit": "grams"
-            },
-            "sodium": {
-              "value": 20,
-              "unit": "milligrams"
-            }
-          },
+          "nutrients": {},
           "glycemic_index": 34.9,
           "glycemic_load": 5.2,
+          "image_url": null,
+          "barcode": "012345678905",
           "servings": [
             {
-              "id": 67943292,
+              "id": "67943292",
               "quantity": 1,
               "unit": "bar",
               "scaling_factor": 1,
@@ -398,6 +340,7 @@
       "publicMethod": "search",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
@@ -416,14 +359,13 @@
           "x-request-id": "request-searchRestaurants"
         },
         "body": {
-          "total_count": 1,
           "items": [
             {
               "type": "restaurant",
               "id": "53fc3b8a-e6bf-404d-83c8-9f42124d1bee",
               "name": "McDonald's",
               "is_chain": false,
-              "distance": 8,
+              "distance_meters": 8,
               "city": "San Francisco",
               "address1": "123 Main Street",
               "address2": "Suite 100"
@@ -433,13 +375,65 @@
       }
     },
     {
+      "operationId": "getRestaurantMenuItems",
+      "method": "GET",
+      "path": "/v1.2/restaurants/{restaurant_id}/menu-items",
+      "resource": "restaurants",
+      "publicMethod": "getMenuItems",
+      "audience": "shared",
+      "parameterNames": {
+        "January-End-User-ID": "endUserId",
+        "x-end-user-id": "endUserId",
+        "x-end-user-timezone": "endUserTimezone"
+      },
+      "request": {
+        "parameters": {
+          "path": {
+            "restaurant_id": "cafe-123"
+          },
+          "query": {
+            "limit": 2,
+            "offset": 1
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "x-request-id": "request-getRestaurantMenuItems"
+        },
+        "body": {
+          "items": [
+            {
+              "id": "228990954",
+              "name": "burger",
+              "nutrients": {},
+              "glycemic_index": 48.5,
+              "glycemic_load": 36.67,
+              "servings": [
+                {
+                  "id": "189343592",
+                  "scaling_factor": 1,
+                  "quantity": 1,
+                  "unit": "serving",
+                  "weight_grams": null,
+                  "is_primary": true
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
       "operationId": "searchRestaurantMenuItems",
       "method": "GET",
-      "path": "/v1.2/restaurants/menu-items",
+      "path": "/v1.2/menu-items",
       "resource": "restaurants",
       "publicMethod": "searchMenuItems",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
@@ -458,7 +452,6 @@
           "x-request-id": "request-searchRestaurantMenuItems"
         },
         "body": {
-          "total_count": 1,
           "items": [
             {
               "type": "menu_item",
@@ -466,50 +459,21 @@
               "name": "burger",
               "restaurant_name": "morning due cafe",
               "is_chain": false,
-              "nutrients": {
-                "calories": {
-                  "value": 800,
-                  "unit": "calories"
-                },
-                "protein": {
-                  "value": 48,
-                  "unit": "grams"
-                },
-                "carbohydrates": {
-                  "value": 40,
-                  "unit": "grams"
-                },
-                "net_carbohydrates": {
-                  "value": 38,
-                  "unit": "grams"
-                },
-                "total_fat": {
-                  "value": 45,
-                  "unit": "grams"
-                },
-                "fiber": {
-                  "value": 2,
-                  "unit": "grams"
-                },
-                "total_sugars": {
-                  "value": 6,
-                  "unit": "grams"
-                }
-              },
+              "nutrients": {},
               "glycemic_index": 48.5,
               "glycemic_load": 36.67,
-              "image_url": "https://example.com/burger.png",
+              "image_url": null,
+              "distance_meters": 124,
               "servings": [
                 {
-                  "id": 189343592,
+                  "id": "189343592",
                   "scaling_factor": 1,
                   "quantity": 1,
                   "unit": "serving",
                   "weight_grams": null,
                   "is_primary": true
                 }
-              ],
-              "distance": 124
+              ]
             }
           ]
         }
@@ -518,20 +482,16 @@
     {
       "operationId": "scanFoodPhoto",
       "method": "POST",
-      "path": "/v1.2/food-scans/photo",
+      "path": "/v1.2/food-analysis/image",
       "resource": "foodAnalysis",
       "publicMethod": "analyzePhoto",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
       "request": {
-        "parameters": {
-          "header": {
-            "x-end-user-id": "oren-sdk-test"
-          }
-        },
         "body": {
           "image": "https://example.com/meal.png"
         }
@@ -543,102 +503,21 @@
         },
         "body": {
           "meal_name": "Breakfast Bowl",
-          "total_nutrients": {
-            "calories": {
-              "value": 300,
-              "unit": "calories"
-            },
-            "protein": {
-              "value": 10.5,
-              "unit": "grams"
-            },
-            "carbohydrates": {
-              "value": 54,
-              "unit": "grams"
-            },
-            "net_carbohydrates": {
-              "value": 46,
-              "unit": "grams"
-            },
-            "total_fat": {
-              "value": 5.5,
-              "unit": "grams"
-            },
-            "saturated_fat": {
-              "value": 1,
-              "unit": "grams"
-            },
-            "fiber": {
-              "value": 8,
-              "unit": "grams"
-            },
-            "total_sugars": {
-              "value": 1.5,
-              "unit": "grams"
-            },
-            "added_sugars": {
-              "value": 0,
-              "unit": "grams"
-            },
-            "sodium": {
-              "value": 9,
-              "unit": "milligrams"
-            }
-          },
+          "total_nutrients": {},
           "detections": [
             {
-              "confidence_score": "high",
+              "confidence": "high",
               "food": {
+                "id": "789012",
                 "name": "Oatmeal",
-                "id": 789012,
-                "brand_name": "",
-                "nutrients": {
-                  "calories": {
-                    "value": 300,
-                    "unit": "calories"
-                  },
-                  "protein": {
-                    "value": 10.5,
-                    "unit": "grams"
-                  },
-                  "carbohydrates": {
-                    "value": 54,
-                    "unit": "grams"
-                  },
-                  "net_carbohydrates": {
-                    "value": 46,
-                    "unit": "grams"
-                  },
-                  "total_fat": {
-                    "value": 5.5,
-                    "unit": "grams"
-                  },
-                  "saturated_fat": {
-                    "value": 1,
-                    "unit": "grams"
-                  },
-                  "fiber": {
-                    "value": 8,
-                    "unit": "grams"
-                  },
-                  "total_sugars": {
-                    "value": 1.5,
-                    "unit": "grams"
-                  },
-                  "added_sugars": {
-                    "value": 0,
-                    "unit": "grams"
-                  },
-                  "sodium": {
-                    "value": 9,
-                    "unit": "milligrams"
-                  }
-                },
+                "brand_name": null,
+                "nutrients": {},
                 "servings": [
                   {
-                    "id": 45678,
+                    "id": "45678",
                     "quantity": 1,
-                    "unit": "cup"
+                    "unit": "cup",
+                    "selected_quantity": 1
                   }
                 ]
               }
@@ -650,7 +529,7 @@
     {
       "operationId": "searchFoodsByNaturalLanguage",
       "method": "POST",
-      "path": "/v1.2/food-scans/text",
+      "path": "/v1.2/food-analysis/text",
       "resource": "foodAnalysis",
       "publicMethod": "analyzeDescription",
       "bodyPropertyNames": {
@@ -658,15 +537,11 @@
       },
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
       "request": {
-        "parameters": {
-          "header": {
-            "x-end-user-id": "oren-sdk-test"
-          }
-        },
         "body": {
           "text": "1 banana, 1 bowl of oatmeal, glass of orange juice"
         }
@@ -677,101 +552,22 @@
           "x-request-id": "request-searchFoodsByNaturalLanguage"
         },
         "body": {
-          "total_nutrients": {
-            "calories": {
-              "value": 105,
-              "unit": "calories"
-            },
-            "protein": {
-              "value": 1.3,
-              "unit": "grams"
-            },
-            "carbohydrates": {
-              "value": 27,
-              "unit": "grams"
-            },
-            "net_carbohydrates": {
-              "value": 24,
-              "unit": "grams"
-            },
-            "total_fat": {
-              "value": 0.4,
-              "unit": "grams"
-            },
-            "saturated_fat": {
-              "value": 0.1,
-              "unit": "grams"
-            },
-            "fiber": {
-              "value": 3.1,
-              "unit": "grams"
-            },
-            "total_sugars": {
-              "value": 14,
-              "unit": "grams"
-            },
-            "added_sugars": {
-              "value": 0,
-              "unit": "grams"
-            },
-            "sodium": {
-              "value": 1,
-              "unit": "milligrams"
-            }
-          },
+          "meal_name": "Breakfast Bowl",
+          "total_nutrients": {},
           "detections": [
             {
+              "confidence": "low",
               "food": {
+                "id": "123456",
                 "name": "Banana",
-                "id": 123456,
-                "brand_name": "",
-                "nutrients": {
-                  "calories": {
-                    "value": 105,
-                    "unit": "calories"
-                  },
-                  "protein": {
-                    "value": 1.3,
-                    "unit": "grams"
-                  },
-                  "carbohydrates": {
-                    "value": 27,
-                    "unit": "grams"
-                  },
-                  "net_carbohydrates": {
-                    "value": 24,
-                    "unit": "grams"
-                  },
-                  "total_fat": {
-                    "value": 0.4,
-                    "unit": "grams"
-                  },
-                  "saturated_fat": {
-                    "value": 0.1,
-                    "unit": "grams"
-                  },
-                  "fiber": {
-                    "value": 3.1,
-                    "unit": "grams"
-                  },
-                  "total_sugars": {
-                    "value": 14,
-                    "unit": "grams"
-                  },
-                  "added_sugars": {
-                    "value": 0,
-                    "unit": "grams"
-                  },
-                  "sodium": {
-                    "value": 1,
-                    "unit": "milligrams"
-                  }
-                },
+                "brand_name": null,
+                "nutrients": {},
                 "servings": [
                   {
-                    "id": 78901,
+                    "id": "78901",
                     "quantity": 1,
-                    "unit": "medium"
+                    "unit": "medium",
+                    "selected_quantity": 1
                   }
                 ]
               }
@@ -783,82 +579,41 @@
     {
       "operationId": "correctPhotoScan",
       "method": "POST",
-      "path": "/v1.2/food-scans/corrections",
+      "path": "/v1.2/food-analysis/corrections",
       "resource": "foodAnalysis",
       "publicMethod": "correct",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
       "request": {
-        "parameters": {
-          "header": {
-            "x-end-user-id": "oren-sdk-test"
-          }
-        },
         "body": {
-          "meal_name": "Breakfast Bowl",
-          "detections": [
-            {
-              "confidence_score": "high",
-              "food": {
-                "name": "Oatmeal",
-                "id": 789012,
-                "brand_name": "",
-                "nutrients": {
-                  "calories": {
-                    "value": 300,
-                    "unit": "calories"
-                  },
-                  "protein": {
-                    "value": 10.5,
-                    "unit": "grams"
-                  },
-                  "carbohydrates": {
-                    "value": 54,
-                    "unit": "grams"
-                  },
-                  "net_carbohydrates": {
-                    "value": 46,
-                    "unit": "grams"
-                  },
-                  "total_fat": {
-                    "value": 5.5,
-                    "unit": "grams"
-                  },
-                  "saturated_fat": {
-                    "value": 1,
-                    "unit": "grams"
-                  },
-                  "fiber": {
-                    "value": 8,
-                    "unit": "grams"
-                  },
-                  "total_sugars": {
-                    "value": 1.5,
-                    "unit": "grams"
-                  },
-                  "added_sugars": {
-                    "value": 0,
-                    "unit": "grams"
-                  },
-                  "sodium": {
-                    "value": 9,
-                    "unit": "milligrams"
-                  }
-                },
-                "servings": [
-                  {
-                    "id": 45678,
-                    "quantity": 1,
-                    "unit": "cup"
-                  }
-                ]
+          "analysis": {
+            "meal_name": "Breakfast Bowl",
+            "total_nutrients": {},
+            "detections": [
+              {
+                "confidence": "high",
+                "food": {
+                  "id": "789012",
+                  "name": "Oatmeal",
+                  "brand_name": null,
+                  "nutrients": {},
+                  "servings": [
+                    {
+                      "id": "45678",
+                      "quantity": 1,
+                      "unit": "cup",
+                      "selected_quantity": 1
+                    }
+                  ]
+                }
               }
-            }
-          ],
-          "user_input": "change oatmeal to steel-cut oats"
+            ]
+          },
+          "instruction": "change oatmeal to steel-cut oats"
         }
       },
       "response": {
@@ -868,102 +623,21 @@
         },
         "body": {
           "meal_name": "Breakfast Bowl",
-          "total_nutrients": {
-            "calories": {
-              "value": 310,
-              "unit": "calories"
-            },
-            "protein": {
-              "value": 11,
-              "unit": "grams"
-            },
-            "carbohydrates": {
-              "value": 55,
-              "unit": "grams"
-            },
-            "net_carbohydrates": {
-              "value": 47,
-              "unit": "grams"
-            },
-            "total_fat": {
-              "value": 5.5,
-              "unit": "grams"
-            },
-            "saturated_fat": {
-              "value": 1,
-              "unit": "grams"
-            },
-            "fiber": {
-              "value": 8,
-              "unit": "grams"
-            },
-            "total_sugars": {
-              "value": 1.5,
-              "unit": "grams"
-            },
-            "added_sugars": {
-              "value": 0,
-              "unit": "grams"
-            },
-            "sodium": {
-              "value": 9,
-              "unit": "milligrams"
-            }
-          },
+          "total_nutrients": {},
           "detections": [
             {
-              "confidence_score": "high",
+              "confidence": "low",
               "food": {
+                "id": "789013",
                 "name": "Steel-Cut Oats",
-                "id": 789013,
-                "brand_name": "",
-                "nutrients": {
-                  "calories": {
-                    "value": 310,
-                    "unit": "calories"
-                  },
-                  "protein": {
-                    "value": 11,
-                    "unit": "grams"
-                  },
-                  "carbohydrates": {
-                    "value": 55,
-                    "unit": "grams"
-                  },
-                  "net_carbohydrates": {
-                    "value": 47,
-                    "unit": "grams"
-                  },
-                  "total_fat": {
-                    "value": 5.5,
-                    "unit": "grams"
-                  },
-                  "saturated_fat": {
-                    "value": 1,
-                    "unit": "grams"
-                  },
-                  "fiber": {
-                    "value": 8,
-                    "unit": "grams"
-                  },
-                  "total_sugars": {
-                    "value": 1.5,
-                    "unit": "grams"
-                  },
-                  "added_sugars": {
-                    "value": 0,
-                    "unit": "grams"
-                  },
-                  "sodium": {
-                    "value": 9,
-                    "unit": "milligrams"
-                  }
-                },
+                "brand_name": null,
+                "nutrients": {},
                 "servings": [
                   {
-                    "id": 45679,
+                    "id": "45679",
                     "quantity": 1,
-                    "unit": "cup"
+                    "unit": "cup",
+                    "selected_quantity": 2
                   }
                 ]
               }
@@ -980,31 +654,29 @@
       "publicMethod": "create",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
       "request": {
         "parameters": {
           "header": {
-            "x-end-user-id": "oren-sdk-test",
-            "x-end-user-timezone": "America/New_York"
+            "January-End-User-ID": "oren-sdk-test"
           }
         },
         "body": {
           "foods": [
             {
-              "id": 101963552,
-              "serving": {
-                "id": 68051535,
-                "quantity": 1.4
-              }
+              "food_id": "101963552",
+              "serving_id": "68051535",
+              "quantity": 1.4
             }
           ],
-          "timestamp_utc": "2024-09-13T11:34:56Z"
+          "eaten_at": "2024-09-13T11:34:56Z"
         }
       },
       "response": {
-        "status": 200,
+        "status": 201,
         "headers": {
           "x-request-id": "request-createFoodLog"
         },
@@ -1012,31 +684,23 @@
           "id": "78129823-8ba2-4183-b13b-71f0e963c606",
           "foods": [
             {
-              "id": 101963552,
+              "food_id": "101963552",
               "name": "Greek Yogurt",
               "brand_name": null,
               "image_url": null,
               "glycemic_index": 11.3,
               "glycemic_load": 1.4,
-              "nutrients": {
-                "calories": {
-                  "value": 308,
-                  "unit": "calories"
-                }
-              },
-              "consumed_serving": {
-                "id": 68051535,
-                "quantity": 1.4
-              },
-              "serving_details": {
-                "id": 68051535,
+              "nutrients": {},
+              "quantity": 1.4,
+              "serving": {
+                "id": "68051535",
                 "quantity": 1,
                 "unit": "cup",
                 "weight_grams": 245
               }
             }
           ],
-          "timestamp_utc": "2024-09-13T11:34:56Z",
+          "eaten_at": "2024-09-13T11:34:56Z",
           "name": null
         }
       }
@@ -1049,18 +713,19 @@
       "publicMethod": "list",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
       "request": {
         "parameters": {
           "query": {
-            "start": "2023-09-12",
-            "end": "2024-09-15"
+            "start_date": "2023-09-12",
+            "end_date": "2024-09-15",
+            "timezone": "America/New_York"
           },
           "header": {
-            "x-end-user-id": "oren-sdk-test",
-            "x-end-user-timezone": "America/New_York"
+            "January-End-User-ID": "oren-sdk-test"
           }
         }
       },
@@ -1070,40 +735,83 @@
           "x-request-id": "request-listFoodLogs"
         },
         "body": {
-          "total_count": 1,
           "items": [
             {
               "id": "78129823-8ba2-4183-b13b-71f0e963c606",
               "foods": [
                 {
-                  "id": 101963552,
+                  "food_id": "101963552",
                   "name": "Greek Yogurt",
                   "brand_name": null,
                   "image_url": null,
                   "glycemic_index": 11.3,
                   "glycemic_load": 1.4,
-                  "nutrients": {
-                    "calories": {
-                      "value": 308,
-                      "unit": "calories"
-                    }
-                  },
-                  "consumed_serving": {
-                    "id": 68051535,
-                    "quantity": 1.4
-                  },
-                  "serving_details": {
-                    "id": 68051535,
+                  "nutrients": {},
+                  "quantity": 1.4,
+                  "serving": {
+                    "id": "68051535",
                     "quantity": 1,
                     "unit": "cup",
                     "weight_grams": 245
                   }
                 }
               ],
-              "timestamp_utc": "2024-09-13T11:34:56Z",
+              "eaten_at": "2024-09-13T11:34:56Z",
               "name": null
             }
           ]
+        }
+      }
+    },
+    {
+      "operationId": "getFoodLog",
+      "method": "GET",
+      "path": "/v1.2/food-logs/{log_id}",
+      "resource": "foodLogs",
+      "publicMethod": "get",
+      "audience": "shared",
+      "parameterNames": {
+        "January-End-User-ID": "endUserId",
+        "x-end-user-id": "endUserId",
+        "x-end-user-timezone": "endUserTimezone"
+      },
+      "request": {
+        "parameters": {
+          "path": {
+            "log_id": "78129823-8ba2-4183-b13b-71f0e963c606"
+          },
+          "header": {
+            "January-End-User-ID": "oren-sdk-test"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "x-request-id": "request-getFoodLog"
+        },
+        "body": {
+          "id": "78129823-8ba2-4183-b13b-71f0e963c606",
+          "foods": [
+            {
+              "food_id": "101963552",
+              "name": "Greek Yogurt",
+              "brand_name": null,
+              "image_url": null,
+              "glycemic_index": 11.3,
+              "glycemic_load": 1.4,
+              "nutrients": {},
+              "quantity": 1.4,
+              "serving": {
+                "id": "68051535",
+                "quantity": 1,
+                "unit": "cup",
+                "weight_grams": 245
+              }
+            }
+          ],
+          "eaten_at": "2024-09-13T11:34:56Z",
+          "name": null
         }
       }
     },
@@ -1115,6 +823,7 @@
       "publicMethod": "update",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
@@ -1124,8 +833,7 @@
             "log_id": "78129823-8ba2-4183-b13b-71f0e963c606"
           },
           "header": {
-            "x-end-user-id": "oren-sdk-test",
-            "x-end-user-timezone": "America/New_York"
+            "January-End-User-ID": "oren-sdk-test"
           }
         },
         "body": {
@@ -1141,31 +849,23 @@
           "id": "78129823-8ba2-4183-b13b-71f0e963c606",
           "foods": [
             {
-              "id": 101963552,
+              "food_id": "101963552",
               "name": "Greek Yogurt",
               "brand_name": null,
               "image_url": null,
               "glycemic_index": 11.3,
               "glycemic_load": 1.4,
-              "nutrients": {
-                "calories": {
-                  "value": 308,
-                  "unit": "calories"
-                }
-              },
-              "consumed_serving": {
-                "id": 68051535,
-                "quantity": 1.4
-              },
-              "serving_details": {
-                "id": 68051535,
+              "nutrients": {},
+              "quantity": 1.4,
+              "serving": {
+                "id": "68051535",
                 "quantity": 1,
                 "unit": "cup",
                 "weight_grams": 245
               }
             }
           ],
-          "timestamp_utc": "2024-09-13T11:34:56Z",
+          "eaten_at": "2024-09-13T11:34:56Z",
           "name": "Lunch"
         }
       }
@@ -1178,6 +878,7 @@
       "publicMethod": "delete",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
@@ -1187,19 +888,16 @@
             "log_id": "78129823-8ba2-4183-b13b-71f0e963c606"
           },
           "header": {
-            "x-end-user-id": "oren-sdk-test",
-            "x-end-user-timezone": "America/New_York"
+            "January-End-User-ID": "oren-sdk-test"
           }
         }
       },
       "response": {
-        "status": 200,
+        "status": 204,
         "headers": {
           "x-request-id": "request-deleteFoodLog"
         },
-        "body": {
-          "status": "deleted"
-        }
+        "body": null
       }
     },
     {
@@ -1210,16 +908,11 @@
       "publicMethod": "predict",
       "audience": "shared",
       "parameterNames": {
+        "January-End-User-ID": "endUserId",
         "x-end-user-id": "endUserId",
         "x-end-user-timezone": "endUserTimezone"
       },
       "request": {
-        "parameters": {
-          "header": {
-            "x-end-user-id": "oren-sdk-test",
-            "x-end-user-timezone": "America/New_York"
-          }
-        },
         "body": {
           "user_profile": {
             "age": 25,
@@ -1237,14 +930,13 @@
               "type_2_diabetes"
             ]
           },
+          "timezone": "America/New_York",
           "start_time": "2025-04-09T19:06:12Z",
           "foods": [
             {
-              "id": 70380652,
-              "serving": {
-                "id": 34176931,
-                "quantity": 1
-              }
+              "food_id": "70380652",
+              "serving_id": "34176931",
+              "quantity": 1
             }
           ]
         }
@@ -1255,7 +947,7 @@
           "x-request-id": "request-predictGlucose"
         },
         "body": {
-          "prediction": [
+          "points": [
             {
               "minutes": 0,
               "value": 95
@@ -1267,34 +959,6 @@
             {
               "minutes": 30,
               "value": 140
-            },
-            {
-              "minutes": 45,
-              "value": 155
-            },
-            {
-              "minutes": 60,
-              "value": 145
-            },
-            {
-              "minutes": 75,
-              "value": 125
-            },
-            {
-              "minutes": 90,
-              "value": 110
-            },
-            {
-              "minutes": 105,
-              "value": 100
-            },
-            {
-              "minutes": 120,
-              "value": 95
-            },
-            {
-              "minutes": 135,
-              "value": 92
             }
           ],
           "impact_score": "medium",
@@ -1302,97 +966,6 @@
             "min": 70,
             "max": 180
           }
-        }
-      }
-    },
-    {
-      "operationId": "mintClientToken",
-      "method": "POST",
-      "path": "/v1.2/auth/client-tokens",
-      "resource": null,
-      "publicMethod": "mintClientToken",
-      "audience": "server",
-      "parameterNames": {
-        "x-end-user-id": "endUserId",
-        "x-end-user-timezone": "endUserTimezone"
-      },
-      "request": {
-        "body": {
-          "end_user_id": "sdk-fixture-user",
-          "scopes": [
-            "foods:read"
-          ],
-          "ttl_seconds": 1800
-        }
-      },
-      "response": {
-        "status": 201,
-        "headers": {
-          "x-request-id": "request-mint"
-        },
-        "body": {
-          "token": "fixture-client-token-not-a-credential",
-          "expires_in": 1800,
-          "expires_at": "2026-08-30T18:30:00Z",
-          "end_user_id": "sdk-fixture-user",
-          "scopes": [
-            "foods:read"
-          ]
-        }
-      }
-    },
-    {
-      "operationId": "revokeClientTokens",
-      "method": "DELETE",
-      "path": "/v1.2/auth/client-tokens",
-      "resource": null,
-      "publicMethod": "revokeClientTokens",
-      "audience": "server",
-      "parameterNames": {
-        "x-end-user-id": "endUserId",
-        "x-end-user-timezone": "endUserTimezone"
-      },
-      "request": {
-        "parameters": {
-          "query": {
-            "end_user_id": "sdk-fixture-user"
-          }
-        }
-      },
-      "response": {
-        "status": 204,
-        "headers": {
-          "X-Revoked-Count": "3",
-          "x-request-id": "request-revoke"
-        },
-        "body": null
-      }
-    },
-    {
-      "operationId": "credits",
-      "method": "GET",
-      "path": "/v1.2/credits",
-      "resource": null,
-      "publicMethod": "credits",
-      "audience": "server",
-      "parameterNames": {
-        "x-end-user-id": "endUserId",
-        "x-end-user-timezone": "endUserTimezone"
-      },
-      "request": {},
-      "response": {
-        "status": 200,
-        "headers": {
-          "x-request-id": "request-credits"
-        },
-        "body": {
-          "plan": "free",
-          "period_start": "2026-08-01",
-          "period_end": "2026-08-31",
-          "resets_at": "2026-09-01T00:00:00Z",
-          "included_credits": 1000,
-          "used_credits": 342,
-          "remaining_credits": 658
         }
       }
     }
@@ -1410,28 +983,26 @@
         "body": {
           "alternatives": [
             {
-              "food": {
-                "name": "brown rice",
-                "id": 70372230,
-                "brand_name": "",
-                "nutrients": {
-                  "calories": {
-                    "value": 105,
-                    "unit": "kcal"
-                  },
-                  "protein": {
-                    "value": 0,
-                    "unit": "g"
-                  }
+              "id": "70372230",
+              "name": "brown rice",
+              "brand_name": null,
+              "nutrients": {
+                "calories": {
+                  "value": 105,
+                  "unit": "kcal"
                 },
-                "servings": [
-                  {
-                    "id": 34113801,
-                    "quantity": 0.5,
-                    "unit": "cup"
-                  }
-                ]
-              }
+                "protein": {
+                  "value": 0,
+                  "unit": "g"
+                }
+              },
+              "servings": [
+                {
+                  "id": "34113801",
+                  "quantity": 0.5,
+                  "unit": "cup"
+                }
+              ]
             }
           ]
         }
@@ -1440,7 +1011,6 @@
         [
           "alternatives",
           0,
-          "food",
           "nutrients"
         ]
       ],
@@ -1467,19 +1037,17 @@
         "body": {
           "alternatives": [
             {
-              "food": {
-                "name": "brown rice",
-                "id": 70372230,
-                "brand_name": "",
-                "nutrients": {},
-                "servings": [
-                  {
-                    "id": 34113801,
-                    "quantity": 0.5,
-                    "unit": "cup"
-                  }
-                ]
-              }
+              "id": "70372230",
+              "name": "brown rice",
+              "brand_name": null,
+              "nutrients": {},
+              "servings": [
+                {
+                  "id": "34113801",
+                  "quantity": 0.5,
+                  "unit": "cup"
+                }
+              ]
             }
           ]
         }
@@ -1488,7 +1056,6 @@
         [
           "alternatives",
           0,
-          "food",
           "nutrients"
         ]
       ],
@@ -1506,23 +1073,21 @@
         "body": {
           "alternatives": [
             {
-              "food": {
-                "name": "brown rice",
-                "id": 70372230,
-                "brand_name": "",
-                "nutrients": {
-                  "calories": {
-                    "unit": "kcal"
-                  }
-                },
-                "servings": [
-                  {
-                    "id": 34113801,
-                    "quantity": 0.5,
-                    "unit": "cup"
-                  }
-                ]
-              }
+              "id": "70372230",
+              "name": "brown rice",
+              "brand_name": null,
+              "nutrients": {
+                "calories": {
+                  "unit": "kcal"
+                }
+              },
+              "servings": [
+                {
+                  "id": "34113801",
+                  "quantity": 0.5,
+                  "unit": "cup"
+                }
+              ]
             }
           ]
         }
@@ -1531,7 +1096,6 @@
         [
           "alternatives",
           0,
-          "food",
           "nutrients"
         ]
       ],
@@ -1553,23 +1117,21 @@
         "body": {
           "alternatives": [
             {
-              "food": {
-                "name": "brown rice",
-                "id": 70372230,
-                "brand_name": "",
-                "nutrients": {
-                  "calories": {
-                    "value": 0
-                  }
-                },
-                "servings": [
-                  {
-                    "id": 34113801,
-                    "quantity": 0.5,
-                    "unit": "cup"
-                  }
-                ]
-              }
+              "id": "70372230",
+              "name": "brown rice",
+              "brand_name": null,
+              "nutrients": {
+                "calories": {
+                  "value": 0
+                }
+              },
+              "servings": [
+                {
+                  "id": "34113801",
+                  "quantity": 0.5,
+                  "unit": "cup"
+                }
+              ]
             }
           ]
         }
@@ -1578,7 +1140,6 @@
         [
           "alternatives",
           0,
-          "food",
           "nutrients"
         ]
       ],
@@ -1598,6 +1159,7 @@
           "x-request-id": "nutrients-searchFoodsByNaturalLanguage-sparse"
         },
         "body": {
+          "meal_name": "Breakfast Bowl",
           "total_nutrients": {
             "calories": {
               "value": 105,
@@ -1610,10 +1172,11 @@
           },
           "detections": [
             {
+              "confidence": "low",
               "food": {
+                "id": "123456",
                 "name": "Banana",
-                "id": 123456,
-                "brand_name": "",
+                "brand_name": null,
                 "nutrients": {
                   "calories": {
                     "value": 105,
@@ -1626,9 +1189,10 @@
                 },
                 "servings": [
                   {
-                    "id": 78901,
+                    "id": "78901",
                     "quantity": 1,
-                    "unit": "medium"
+                    "unit": "medium",
+                    "selected_quantity": 1
                   }
                 ]
               }
@@ -1668,19 +1232,22 @@
           "x-request-id": "nutrients-searchFoodsByNaturalLanguage-empty"
         },
         "body": {
+          "meal_name": "Breakfast Bowl",
           "total_nutrients": {},
           "detections": [
             {
+              "confidence": "low",
               "food": {
+                "id": "123456",
                 "name": "Banana",
-                "id": 123456,
-                "brand_name": "",
+                "brand_name": null,
                 "nutrients": {},
                 "servings": [
                   {
-                    "id": 78901,
+                    "id": "78901",
                     "quantity": 1,
-                    "unit": "medium"
+                    "unit": "medium",
+                    "selected_quantity": 1
                   }
                 ]
               }
@@ -1711,6 +1278,7 @@
           "x-request-id": "nutrients-searchFoodsByNaturalLanguage-missing-value"
         },
         "body": {
+          "meal_name": "Breakfast Bowl",
           "total_nutrients": {
             "calories": {
               "unit": "kcal"
@@ -1718,10 +1286,11 @@
           },
           "detections": [
             {
+              "confidence": "low",
               "food": {
+                "id": "123456",
                 "name": "Banana",
-                "id": 123456,
-                "brand_name": "",
+                "brand_name": null,
                 "nutrients": {
                   "calories": {
                     "unit": "kcal"
@@ -1729,9 +1298,10 @@
                 },
                 "servings": [
                   {
-                    "id": 78901,
+                    "id": "78901",
                     "quantity": 1,
-                    "unit": "medium"
+                    "unit": "medium",
+                    "selected_quantity": 1
                   }
                 ]
               }
@@ -1766,6 +1336,7 @@
           "x-request-id": "nutrients-searchFoodsByNaturalLanguage-missing-unit"
         },
         "body": {
+          "meal_name": "Breakfast Bowl",
           "total_nutrients": {
             "calories": {
               "value": 0
@@ -1773,10 +1344,11 @@
           },
           "detections": [
             {
+              "confidence": "low",
               "food": {
+                "id": "123456",
                 "name": "Banana",
-                "id": 123456,
-                "brand_name": "",
+                "brand_name": null,
                 "nutrients": {
                   "calories": {
                     "value": 0
@@ -1784,9 +1356,10 @@
                 },
                 "servings": [
                   {
-                    "id": 78901,
+                    "id": "78901",
                     "quantity": 1,
-                    "unit": "medium"
+                    "unit": "medium",
+                    "selected_quantity": 1
                   }
                 ]
               }
@@ -1834,11 +1407,11 @@
           },
           "detections": [
             {
-              "confidence_score": "high",
+              "confidence": "high",
               "food": {
+                "id": "789012",
                 "name": "Oatmeal",
-                "id": 789012,
-                "brand_name": "",
+                "brand_name": null,
                 "nutrients": {
                   "calories": {
                     "value": 105,
@@ -1851,9 +1424,10 @@
                 },
                 "servings": [
                   {
-                    "id": 45678,
+                    "id": "45678",
                     "quantity": 1,
-                    "unit": "cup"
+                    "unit": "cup",
+                    "selected_quantity": 1
                   }
                 ]
               }
@@ -1897,17 +1471,18 @@
           "total_nutrients": {},
           "detections": [
             {
-              "confidence_score": "high",
+              "confidence": "high",
               "food": {
+                "id": "789012",
                 "name": "Oatmeal",
-                "id": 789012,
-                "brand_name": "",
+                "brand_name": null,
                 "nutrients": {},
                 "servings": [
                   {
-                    "id": 45678,
+                    "id": "45678",
                     "quantity": 1,
-                    "unit": "cup"
+                    "unit": "cup",
+                    "selected_quantity": 1
                   }
                 ]
               }
@@ -1946,11 +1521,11 @@
           },
           "detections": [
             {
-              "confidence_score": "high",
+              "confidence": "high",
               "food": {
+                "id": "789012",
                 "name": "Oatmeal",
-                "id": 789012,
-                "brand_name": "",
+                "brand_name": null,
                 "nutrients": {
                   "calories": {
                     "unit": "kcal"
@@ -1958,9 +1533,10 @@
                 },
                 "servings": [
                   {
-                    "id": 45678,
+                    "id": "45678",
                     "quantity": 1,
-                    "unit": "cup"
+                    "unit": "cup",
+                    "selected_quantity": 1
                   }
                 ]
               }
@@ -2003,11 +1579,11 @@
           },
           "detections": [
             {
-              "confidence_score": "high",
+              "confidence": "high",
               "food": {
+                "id": "789012",
                 "name": "Oatmeal",
-                "id": 789012,
-                "brand_name": "",
+                "brand_name": null,
                 "nutrients": {
                   "calories": {
                     "value": 0
@@ -2015,9 +1591,10 @@
                 },
                 "servings": [
                   {
-                    "id": 45678,
+                    "id": "45678",
                     "quantity": 1,
-                    "unit": "cup"
+                    "unit": "cup",
+                    "selected_quantity": 1
                   }
                 ]
               }
@@ -2065,11 +1642,11 @@
           },
           "detections": [
             {
-              "confidence_score": "high",
+              "confidence": "low",
               "food": {
+                "id": "789013",
                 "name": "Steel-Cut Oats",
-                "id": 789013,
-                "brand_name": "",
+                "brand_name": null,
                 "nutrients": {
                   "calories": {
                     "value": 105,
@@ -2082,9 +1659,10 @@
                 },
                 "servings": [
                   {
-                    "id": 45679,
+                    "id": "45679",
                     "quantity": 1,
-                    "unit": "cup"
+                    "unit": "cup",
+                    "selected_quantity": 2
                   }
                 ]
               }
@@ -2128,17 +1706,18 @@
           "total_nutrients": {},
           "detections": [
             {
-              "confidence_score": "high",
+              "confidence": "low",
               "food": {
+                "id": "789013",
                 "name": "Steel-Cut Oats",
-                "id": 789013,
-                "brand_name": "",
+                "brand_name": null,
                 "nutrients": {},
                 "servings": [
                   {
-                    "id": 45679,
+                    "id": "45679",
                     "quantity": 1,
-                    "unit": "cup"
+                    "unit": "cup",
+                    "selected_quantity": 2
                   }
                 ]
               }
@@ -2177,11 +1756,11 @@
           },
           "detections": [
             {
-              "confidence_score": "high",
+              "confidence": "low",
               "food": {
+                "id": "789013",
                 "name": "Steel-Cut Oats",
-                "id": 789013,
-                "brand_name": "",
+                "brand_name": null,
                 "nutrients": {
                   "calories": {
                     "unit": "kcal"
@@ -2189,9 +1768,10 @@
                 },
                 "servings": [
                   {
-                    "id": 45679,
+                    "id": "45679",
                     "quantity": 1,
-                    "unit": "cup"
+                    "unit": "cup",
+                    "selected_quantity": 2
                   }
                 ]
               }
@@ -2234,11 +1814,11 @@
           },
           "detections": [
             {
-              "confidence_score": "high",
+              "confidence": "low",
               "food": {
+                "id": "789013",
                 "name": "Steel-Cut Oats",
-                "id": 789013,
-                "brand_name": "",
+                "brand_name": null,
                 "nutrients": {
                   "calories": {
                     "value": 0
@@ -2246,9 +1826,10 @@
                 },
                 "servings": [
                   {
-                    "id": 45679,
+                    "id": "45679",
                     "quantity": 1,
-                    "unit": "cup"
+                    "unit": "cup",
+                    "selected_quantity": 2
                   }
                 ]
               }
@@ -2326,6 +1907,8 @@
     "period_start": "2026-08-01",
     "period_end": "2026-08-31",
     "resets_at": "2026-09-01T00:00:00Z",
-    "used_credits": 342
+    "included_credits": null,
+    "used_credits": 342,
+    "remaining_credits": null
   }
 }

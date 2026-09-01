@@ -23,11 +23,11 @@ func TestDemoIssuerReturnsStableTokenShape(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	token, err := client.ClientTokens.Create(context.Background(), CreateClientTokenInput{EndUserID: "user-123"})
+	token, err := client.ClientTokens.Create(context.Background(), CreateClientTokenInput{EndUserID: "user-123", Scopes: []string{ScopeFoodsRead}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if token.AccessToken != "demo-token" || token.TokenType != "Bearer" || token.ExpiresIn != 300 {
+	if token.Token != "demo-token" || token.ExpiresIn != 300 || token.EndUserID != "user-123" || len(token.Scopes) != 1 {
 		t.Fatalf("unexpected token: %#v", token)
 	}
 	if token.ExpiresAt != "2026-08-22T18:05:00.000Z" {
@@ -62,7 +62,7 @@ func TestMissingIssuerFailsClearly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.ClientTokens.Create(context.Background(), CreateClientTokenInput{EndUserID: "user-123"})
+	_, err = client.ClientTokens.Create(context.Background(), CreateClientTokenInput{EndUserID: "user-123", Scopes: []string{ScopeFoodsRead}})
 	if !errors.Is(err, ErrNotConfigured) {
 		t.Fatalf("expected ErrNotConfigured, got %v", err)
 	}

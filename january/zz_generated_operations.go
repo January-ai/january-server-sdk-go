@@ -4,7 +4,6 @@ package january
 import (
 	"context"
 	"encoding/json"
-	"math"
 	"strings"
 )
 
@@ -42,7 +41,60 @@ func newGeneratedUserClient(t *transport, u userContext) *UserClient {
 	return &UserClient{Foods: &FoodsService{service{transport: t, user: u}}, Restaurants: &RestaurantsService{service{transport: t, user: u}}, FoodAnalysis: &FoodAnalysisService{service{transport: t, user: u}}, FoodLogs: &FoodLogsService{service{transport: t, user: u}}, Glucose: &GlucoseService{service{transport: t, user: u}}}
 }
 
-var opSearchFoods = operation{ID: "searchFoods", Method: "GET", Path: "/v1.2/foods", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "query", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":256,\"type\":\"string\"}")}, {Name: "category", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodCategory\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":40,\"type\":\"number\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodSearchResults\"}")}}
+var opCreateClientToken = operation{ID: "createClientToken", Method: "POST", Path: "/v1.2/auth/client-tokens", Parameters: []parameter{}, BodyFields: []string{"end_user_id", "scopes", "ttl_seconds"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"end_user_id\":{\"type\":\"string\",\"maxLength\":64},\"scopes\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"foods:read\",\"food_analysis:write\",\"food_logs:read\",\"food_logs:write\",\"glucose:read\",\"restaurants:read\"]}},\"ttl_seconds\":{\"type\":\"integer\",\"minimum\":300,\"maximum\":7200}},\"required\":[\"end_user_id\",\"scopes\"]}"), ResponseSchemas: map[int]json.RawMessage{201: json.RawMessage("{\"$ref\":\"#/components/schemas/ClientToken\"}")}}
+
+func init() { opCreateClientToken.RetryNever = false; opCreateClientToken.RetryAmbiguous = false }
+
+// CreateClientToken Mint a client token.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
+func (c *Client) CreateClientToken(ctx context.Context, request CreateClientTokenRequest) (*ClientToken, *Response, error) {
+	var result ClientToken
+	response, err := execute(ctx, service{transport: c.transport}, opCreateClientToken, request, &result)
+	if err != nil {
+		return nil, response, err
+	}
+	return &result, response, nil
+}
+
+var opRevokeClientTokens = operation{ID: "revokeClientTokens", Method: "POST", Path: "/v1.2/auth/client-token-revocations", Parameters: []parameter{}, BodyFields: []string{"end_user_id"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"end_user_id\":{\"type\":\"string\",\"maxLength\":64}},\"required\":[\"end_user_id\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/ClientTokenRevocationResult\"}")}}
+
+func init() { opRevokeClientTokens.RetryNever = true; opRevokeClientTokens.RetryAmbiguous = true }
+
+// RevokeClientTokens Revoke an end user’s client tokens.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
+// Sends one revocation request. Repeat until RevokedCount is zero when needed.
+func (c *Client) RevokeClientTokens(ctx context.Context, request RevokeClientTokensRequest) (*ClientTokenRevocationResult, *Response, error) {
+	var result ClientTokenRevocationResult
+	response, err := execute(ctx, service{transport: c.transport}, opRevokeClientTokens, request, &result)
+	if err != nil {
+		return nil, response, err
+	}
+	return &result, response, nil
+}
+
+var opGetCredits = operation{ID: "getCredits", Method: "GET", Path: "/v1.2/credits", Parameters: []parameter{}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/CreditBalance\"}")}}
+
+func init() { opGetCredits.RetryNever = false; opGetCredits.RetryAmbiguous = true }
+
+// GetCredits Get your credit balance.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
+func (c *Client) GetCredits(ctx context.Context, requests ...GetCreditsRequest) (*CreditBalance, *Response, error) {
+	var request GetCreditsRequest
+	if len(requests) > 1 {
+		return nil, nil, ErrInvalidInput
+	}
+	if len(requests) == 1 {
+		request = requests[0]
+	}
+	var result CreditBalance
+	response, err := execute(ctx, service{transport: c.transport}, opGetCredits, request, &result)
+	if err != nil {
+		return nil, response, err
+	}
+	return &result, response, nil
+}
+
+var opSearchFoods = operation{ID: "searchFoods", Method: "GET", Path: "/v1.2/foods", Parameters: []parameter{{Name: "query", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":256,\"type\":\"string\"}")}, {Name: "type", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodCategory\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":40,\"type\":\"integer\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodSearchResults\"}")}}
 
 func init() { opSearchFoods.RetryNever = false; opSearchFoods.RetryAmbiguous = true }
 
@@ -57,7 +109,7 @@ func (c *FoodsService) Search(ctx context.Context, request SearchFoodsRequest) (
 	return &result, response, nil
 }
 
-var opAutocompleteFoods = operation{ID: "autocompleteFoods", Method: "GET", Path: "/v1.2/foods/autocomplete", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "query", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":64,\"type\":\"string\"}")}, {Name: "category", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/AutocompleteFoodCategory\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":20,\"type\":\"number\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/AutocompleteFoodsResponse\"}")}}
+var opAutocompleteFoods = operation{ID: "autocompleteFoods", Method: "GET", Path: "/v1.2/foods/autocomplete", Parameters: []parameter{{Name: "query", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":64,\"type\":\"string\"}")}, {Name: "type", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/AutocompleteFoodCategory\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":20,\"type\":\"integer\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/AutocompleteFoodsResponse\"}")}}
 
 func init() { opAutocompleteFoods.RetryNever = false; opAutocompleteFoods.RetryAmbiguous = true }
 
@@ -72,7 +124,7 @@ func (c *FoodsService) Autocomplete(ctx context.Context, request AutocompleteFoo
 	return &result, response, nil
 }
 
-var opSuggestFoodAlternatives = operation{ID: "suggestFoodAlternatives", Method: "POST", Path: "/v1.2/foods/{food_id}/alternatives", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "food_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodId\"}")}}, BodyFields: []string{"diet_restrictions", "diet_preferences"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"diet_restrictions\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/DietRestriction\"},\"minItems\":1},\"diet_preferences\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/DietPreference\"},\"minItems\":1}}}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/SuggestFoodAlternativesResponse\"}")}}
+var opSuggestFoodAlternatives = operation{ID: "suggestFoodAlternatives", Method: "POST", Path: "/v1.2/foods/{food_id}/alternatives", Parameters: []parameter{{Name: "food_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodId\"}")}}, BodyFields: []string{"diet_restrictions", "diet_preferences"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"diet_restrictions\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/DietRestriction\"}},\"diet_preferences\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/DietPreference\"}}}}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/SuggestFoodAlternativesResponse\"}")}}
 
 func init() {
 	opSuggestFoodAlternatives.RetryNever = false
@@ -90,14 +142,14 @@ func (c *FoodsService) SuggestAlternatives(ctx context.Context, request SuggestF
 	return &result, response, nil
 }
 
-var opLookupFoodByBarcode = operation{ID: "lookupFoodByBarcode", Method: "GET", Path: "/v1.2/foods/barcode/{upc}", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "upc", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/Barcode\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodSearchResults\"}")}}
+var opLookupFoodByBarcode = operation{ID: "lookupFoodByBarcode", Method: "GET", Path: "/v1.2/foods/barcode/{barcode}", Parameters: []parameter{{Name: "barcode", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/Barcode\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodSearchItem\"}")}}
 
 func init() { opLookupFoodByBarcode.RetryNever = false; opLookupFoodByBarcode.RetryAmbiguous = true }
 
 // LookupBarcode Look up a food by barcode.
 // Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
-func (c *FoodsService) LookupBarcode(ctx context.Context, request LookupFoodByBarcodeRequest) (*FoodSearchResults, *Response, error) {
-	var result FoodSearchResults
+func (c *FoodsService) LookupBarcode(ctx context.Context, request LookupFoodByBarcodeRequest) (*FoodSearchItem, *Response, error) {
+	var result FoodSearchItem
 	response, err := execute(ctx, c.service, opLookupFoodByBarcode, request, &result)
 	if err != nil {
 		return nil, response, err
@@ -105,7 +157,7 @@ func (c *FoodsService) LookupBarcode(ctx context.Context, request LookupFoodByBa
 	return &result, response, nil
 }
 
-var opGetFood = operation{ID: "getFood", Method: "GET", Path: "/v1.2/foods/{food_id}", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "food_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodId\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodSearchItem\"}")}}
+var opGetFood = operation{ID: "getFood", Method: "GET", Path: "/v1.2/foods/{food_id}", Parameters: []parameter{{Name: "food_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodId\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodSearchItem\"}")}}
 
 func init() { opGetFood.RetryNever = false; opGetFood.RetryAmbiguous = true }
 
@@ -120,7 +172,7 @@ func (c *FoodsService) Get(ctx context.Context, request GetFoodRequest) (*FoodSe
 	return &result, response, nil
 }
 
-var opSearchRestaurants = operation{ID: "searchRestaurants", Method: "GET", Path: "/v1.2/restaurants", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "radius", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":17000,\"type\":\"number\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":100,\"type\":\"number\"}")}, {Name: "query", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":256,\"type\":\"string\"}")}, {Name: "latitude", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"minimum\":-90,\"maximum\":90,\"type\":\"number\"}")}, {Name: "longitude", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"minimum\":-180,\"maximum\":180,\"type\":\"number\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/SearchRestaurantsResponse\"}")}}
+var opSearchRestaurants = operation{ID: "searchRestaurants", Method: "GET", Path: "/v1.2/restaurants", Parameters: []parameter{{Name: "radius_meters", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":50000,\"type\":\"number\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":100,\"type\":\"integer\"}")}, {Name: "query", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":256,\"type\":\"string\"}")}, {Name: "latitude", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"minimum\":-90,\"maximum\":90,\"type\":\"number\"}")}, {Name: "longitude", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"minimum\":-180,\"maximum\":180,\"type\":\"number\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/SearchRestaurantsResponse\"}")}}
 
 func init() { opSearchRestaurants.RetryNever = false; opSearchRestaurants.RetryAmbiguous = true }
 
@@ -135,7 +187,25 @@ func (c *RestaurantsService) Search(ctx context.Context, request SearchRestauran
 	return &result, response, nil
 }
 
-var opSearchRestaurantMenuItems = operation{ID: "searchRestaurantMenuItems", Method: "GET", Path: "/v1.2/restaurants/menu-items", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "radius", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":17000,\"type\":\"number\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":100,\"type\":\"number\"}")}, {Name: "query", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":256,\"type\":\"string\"}")}, {Name: "latitude", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"minimum\":-90,\"maximum\":90,\"type\":\"number\"}")}, {Name: "longitude", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"minimum\":-180,\"maximum\":180,\"type\":\"number\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/SearchRestaurantMenuItemsResponse\"}")}}
+var opGetRestaurantMenuItems = operation{ID: "getRestaurantMenuItems", Method: "GET", Path: "/v1.2/restaurants/{restaurant_id}/menu-items", Parameters: []parameter{{Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":500,\"type\":\"integer\"}")}, {Name: "offset", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":0,\"type\":\"integer\"}")}, {Name: "restaurant_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"type\":\"string\",\"pattern\":\"^[A-Za-z0-9_-]{1,64}$\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/GetRestaurantMenuItemsResponse\"}")}}
+
+func init() {
+	opGetRestaurantMenuItems.RetryNever = false
+	opGetRestaurantMenuItems.RetryAmbiguous = true
+}
+
+// GetMenuItems List a restaurant's menu items.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
+func (c *RestaurantsService) GetMenuItems(ctx context.Context, request GetRestaurantMenuItemsRequest) (*GetRestaurantMenuItemsResponse, *Response, error) {
+	var result GetRestaurantMenuItemsResponse
+	response, err := execute(ctx, c.service, opGetRestaurantMenuItems, request, &result)
+	if err != nil {
+		return nil, response, err
+	}
+	return &result, response, nil
+}
+
+var opSearchRestaurantMenuItems = operation{ID: "searchRestaurantMenuItems", Method: "GET", Path: "/v1.2/menu-items", Parameters: []parameter{{Name: "radius_meters", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":50000,\"type\":\"number\"}")}, {Name: "limit", In: "query", Required: false, Explode: true, Schema: json.RawMessage("{\"minimum\":1,\"maximum\":100,\"type\":\"integer\"}")}, {Name: "query", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":256,\"type\":\"string\"}")}, {Name: "latitude", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"minimum\":-90,\"maximum\":90,\"type\":\"number\"}")}, {Name: "longitude", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"minimum\":-180,\"maximum\":180,\"type\":\"number\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/SearchRestaurantMenuItemsResponse\"}")}}
 
 func init() {
 	opSearchRestaurantMenuItems.RetryNever = false
@@ -153,11 +223,11 @@ func (c *RestaurantsService) SearchMenuItems(ctx context.Context, request Search
 	return &result, response, nil
 }
 
-var opScanFoodPhoto = operation{ID: "scanFoodPhoto", Method: "POST", Path: "/v1.2/food-scans/photo", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}}, BodyFields: []string{"image"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"image\":{\"type\":\"string\"}},\"required\":[\"image\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodScan\"}")}}
+var opScanFoodPhoto = operation{ID: "scanFoodPhoto", Method: "POST", Path: "/v1.2/food-analysis/image", Parameters: []parameter{}, BodyFields: []string{"image"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"image\":{\"type\":\"string\"}},\"required\":[\"image\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodScan\"}")}}
 
 func init() { opScanFoodPhoto.RetryNever = false; opScanFoodPhoto.RetryAmbiguous = true }
 
-// AnalyzePhoto Scan a food or label photo.
+// AnalyzePhoto Analyze a food or label photo.
 // Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 // Use PrepareImage for trusted paths, image bytes, readers, or image.Image values.
 func (c *FoodAnalysisService) AnalyzePhoto(ctx context.Context, request ScanFoodPhotoRequest) (*FoodScan, *Response, error) {
@@ -169,14 +239,14 @@ func (c *FoodAnalysisService) AnalyzePhoto(ctx context.Context, request ScanFood
 	return &result, response, nil
 }
 
-var opSearchFoodsByNaturalLanguage = operation{ID: "searchFoodsByNaturalLanguage", Method: "POST", Path: "/v1.2/food-scans/text", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}}, BodyFields: []string{"text"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"maxLength\":512}},\"required\":[\"text\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodScan\"}")}}
+var opSearchFoodsByNaturalLanguage = operation{ID: "searchFoodsByNaturalLanguage", Method: "POST", Path: "/v1.2/food-analysis/text", Parameters: []parameter{}, BodyFields: []string{"text"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"maxLength\":512}},\"required\":[\"text\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodScan\"}")}}
 
 func init() {
 	opSearchFoodsByNaturalLanguage.RetryNever = false
 	opSearchFoodsByNaturalLanguage.RetryAmbiguous = true
 }
 
-// AnalyzeDescription Scan a meal description.
+// AnalyzeDescription Analyze a meal description.
 // Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodAnalysisService) AnalyzeDescription(ctx context.Context, request SearchFoodsByNaturalLanguageRequest) (*FoodScan, *Response, error) {
 	var result FoodScan
@@ -187,11 +257,11 @@ func (c *FoodAnalysisService) AnalyzeDescription(ctx context.Context, request Se
 	return &result, response, nil
 }
 
-var opCorrectPhotoScan = operation{ID: "correctPhotoScan", Method: "POST", Path: "/v1.2/food-scans/corrections", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}}, BodyFields: []string{"meal_name", "detections", "user_input"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"meal_name\":{\"type\":\"string\"},\"detections\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodDetection\"}},\"user_input\":{\"type\":\"string\"}},\"required\":[\"detections\",\"user_input\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodScan\"}")}}
+var opCorrectPhotoScan = operation{ID: "correctPhotoScan", Method: "POST", Path: "/v1.2/food-analysis/corrections", Parameters: []parameter{}, BodyFields: []string{"analysis", "instruction"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"analysis\":{\"allOf\":[{\"$ref\":\"#/components/schemas/FoodScan\"}]},\"instruction\":{\"type\":\"string\",\"maxLength\":1000}},\"required\":[\"analysis\",\"instruction\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodScan\"}")}}
 
 func init() { opCorrectPhotoScan.RetryNever = false; opCorrectPhotoScan.RetryAmbiguous = true }
 
-// Correct Correct a scan in plain English.
+// Correct Correct an analysis in plain English.
 // Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
 func (c *FoodAnalysisService) Correct(ctx context.Context, request CorrectPhotoScanRequest) (*FoodScan, *Response, error) {
 	var result FoodScan
@@ -202,7 +272,7 @@ func (c *FoodAnalysisService) Correct(ctx context.Context, request CorrectPhotoS
 	return &result, response, nil
 }
 
-var opCreateFoodLog = operation{ID: "createFoodLog", Method: "POST", Path: "/v1.2/food-logs", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "x-end-user-timezone", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}}, BodyFields: []string{"foods", "timestamp_utc", "name"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"timestamp_utc\":{\"type\":\"string\",\"format\":\"date-time\"},\"name\":{\"type\":\"string\",\"maxLength\":256}},\"required\":[\"foods\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLog\"}")}}
+var opCreateFoodLog = operation{ID: "createFoodLog", Method: "POST", Path: "/v1.2/food-logs", Parameters: []parameter{{Name: "January-End-User-ID", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}}, BodyFields: []string{"foods", "eaten_at", "name"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"eaten_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"name\":{\"type\":\"string\",\"maxLength\":256}},\"required\":[\"foods\"]}"), ResponseSchemas: map[int]json.RawMessage{201: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLog\"}")}}
 
 func init() { opCreateFoodLog.RetryNever = false; opCreateFoodLog.RetryAmbiguous = false }
 
@@ -217,7 +287,7 @@ func (c *FoodLogsService) Create(ctx context.Context, request CreateFoodLogReque
 	return &result, response, nil
 }
 
-var opListFoodLogs = operation{ID: "listFoodLogs", Method: "GET", Path: "/v1.2/food-logs", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "x-end-user-timezone", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}, {Name: "start", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"format\":\"date\",\"type\":\"string\"}")}, {Name: "end", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"format\":\"date\",\"type\":\"string\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/ListFoodLogsResponse\"}")}}
+var opListFoodLogs = operation{ID: "listFoodLogs", Method: "GET", Path: "/v1.2/food-logs", Parameters: []parameter{{Name: "January-End-User-ID", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "start_date", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"format\":\"date\",\"type\":\"string\"}")}, {Name: "end_date", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"format\":\"date\",\"type\":\"string\"}")}, {Name: "timezone", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"type\":\"string\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/ListFoodLogsResponse\"}")}}
 
 func init() { opListFoodLogs.RetryNever = false; opListFoodLogs.RetryAmbiguous = true }
 
@@ -232,7 +302,22 @@ func (c *FoodLogsService) List(ctx context.Context, request ListFoodLogsRequest)
 	return &result, response, nil
 }
 
-var opUpdateFoodLog = operation{ID: "updateFoodLog", Method: "PATCH", Path: "/v1.2/food-logs/{log_id}", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "x-end-user-timezone", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}, {Name: "log_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLogId\"}")}}, BodyFields: []string{"foods", "timestamp_utc", "name"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"timestamp_utc\":{\"type\":\"string\"},\"name\":{\"type\":\"string\",\"maxLength\":256}}}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLog\"}")}}
+var opGetFoodLog = operation{ID: "getFoodLog", Method: "GET", Path: "/v1.2/food-logs/{log_id}", Parameters: []parameter{{Name: "January-End-User-ID", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "log_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLogId\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLog\"}")}}
+
+func init() { opGetFoodLog.RetryNever = false; opGetFoodLog.RetryAmbiguous = true }
+
+// Get Get a food log.
+// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
+func (c *FoodLogsService) Get(ctx context.Context, request GetFoodLogRequest) (*FoodLog, *Response, error) {
+	var result FoodLog
+	response, err := execute(ctx, c.service, opGetFoodLog, request, &result)
+	if err != nil {
+		return nil, response, err
+	}
+	return &result, response, nil
+}
+
+var opUpdateFoodLog = operation{ID: "updateFoodLog", Method: "PATCH", Path: "/v1.2/food-logs/{log_id}", Parameters: []parameter{{Name: "January-End-User-ID", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "log_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLogId\"}")}}, BodyFields: []string{"foods", "eaten_at", "name"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"eaten_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"name\":{\"type\":\"string\",\"maxLength\":256}}}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLog\"}")}}
 
 func init() { opUpdateFoodLog.RetryNever = false; opUpdateFoodLog.RetryAmbiguous = true }
 
@@ -247,22 +332,17 @@ func (c *FoodLogsService) Update(ctx context.Context, request UpdateFoodLogReque
 	return &result, response, nil
 }
 
-var opDeleteFoodLog = operation{ID: "deleteFoodLog", Method: "DELETE", Path: "/v1.2/food-logs/{log_id}", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "x-end-user-timezone", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}, {Name: "log_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLogId\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/DeleteFoodLogResponse\"}")}}
+var opDeleteFoodLog = operation{ID: "deleteFoodLog", Method: "DELETE", Path: "/v1.2/food-logs/{log_id}", Parameters: []parameter{{Name: "January-End-User-ID", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "log_id", In: "path", Required: true, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/FoodLogId\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{204: nil}}
 
 func init() { opDeleteFoodLog.RetryNever = false; opDeleteFoodLog.RetryAmbiguous = true }
 
 // Delete Delete a food log.
 // Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
-func (c *FoodLogsService) Delete(ctx context.Context, request DeleteFoodLogRequest) (*DeleteFoodLogResponse, *Response, error) {
-	var result DeleteFoodLogResponse
-	response, err := execute(ctx, c.service, opDeleteFoodLog, request, &result)
-	if err != nil {
-		return nil, response, err
-	}
-	return &result, response, nil
+func (c *FoodLogsService) Delete(ctx context.Context, request DeleteFoodLogRequest) (*Response, error) {
+	return execute(ctx, c.service, opDeleteFoodLog, request, nil)
 }
 
-var opPredictGlucose = operation{ID: "predictGlucose", Method: "POST", Path: "/v1.2/glucose/predictions", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"$ref\":\"#/components/schemas/PartnerUserId\"}")}, {Name: "x-end-user-timezone", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}}, BodyFields: []string{"user_profile", "foods", "start_time", "cgm_data", "consumed_foods"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"user_profile\":{\"$ref\":\"#/components/schemas/GlucosePredictionProfile\"},\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"start_time\":{\"type\":\"string\",\"format\":\"date-time\"},\"cgm_data\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/CgmReading\"}},\"consumed_foods\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/ConsumedHistoricalFood\"}}},\"required\":[\"user_profile\",\"foods\",\"start_time\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/GlucosePrediction\"}")}}
+var opPredictGlucose = operation{ID: "predictGlucose", Method: "POST", Path: "/v1.2/glucose/predictions", Parameters: []parameter{}, BodyFields: []string{"user_profile", "timezone", "foods", "start_time", "cgm_data", "consumed_foods"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"user_profile\":{\"$ref\":\"#/components/schemas/GlucosePredictionProfile\"},\"timezone\":{\"type\":\"string\"},\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"start_time\":{\"type\":\"string\",\"format\":\"date-time\"},\"cgm_data\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/CgmReading\"}},\"consumed_foods\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/ConsumedHistoricalFood\"}}},\"required\":[\"user_profile\",\"timezone\",\"foods\",\"start_time\"]}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/GlucosePrediction\"}")}}
 
 func init() { opPredictGlucose.RetryNever = false; opPredictGlucose.RetryAmbiguous = true }
 
@@ -277,135 +357,83 @@ func (c *GlucoseService) Predict(ctx context.Context, request PredictGlucoseRequ
 	return &result, response, nil
 }
 
-var opMintClientToken = operation{ID: "mintClientToken", Method: "POST", Path: "/v1.2/auth/client-tokens", Parameters: []parameter{}, BodyFields: []string{"end_user_id", "scopes", "ttl_seconds"}, RequiredBody: true, BodySchema: json.RawMessage("{\"type\":\"object\",\"properties\":{\"end_user_id\":{\"type\":\"string\",\"maxLength\":64},\"scopes\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"foods:read\",\"food_scans:write\",\"food_logs:read\",\"food_logs:write\",\"glucose:read\",\"restaurants:read\"]}},\"ttl_seconds\":{\"type\":\"number\",\"minimum\":300,\"maximum\":7200}},\"required\":[\"end_user_id\"]}"), ResponseSchemas: map[int]json.RawMessage{201: json.RawMessage("{\"$ref\":\"#/components/schemas/ClientTokenResponseDto\"}")}}
-
-func init() { opMintClientToken.RetryNever = false; opMintClientToken.RetryAmbiguous = false }
-
-// MintClientToken Mint a client token.
-// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
-func (c *Client) MintClientToken(ctx context.Context, request MintClientTokenRequest) (*ClientTokenResponseDto, *Response, error) {
-	var result ClientTokenResponseDto
-	response, err := execute(ctx, service{transport: c.transport}, opMintClientToken, request, &result)
-	if err != nil {
-		return nil, response, err
-	}
-	return &result, response, nil
-}
-
-var opRevokeClientTokens = operation{ID: "revokeClientTokens", Method: "DELETE", Path: "/v1.2/auth/client-tokens", Parameters: []parameter{{Name: "end_user_id", In: "query", Required: true, Explode: true, Schema: json.RawMessage("{\"maxLength\":64,\"type\":\"string\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{204: nil}}
-
-func init() { opRevokeClientTokens.RetryNever = true; opRevokeClientTokens.RetryAmbiguous = true }
-
-// RevokeClientTokens Revoke an end user’s client tokens.
-// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
-// Exactly one DELETE. Response.RevokedCount exposes X-Revoked-Count.
-func (c *Client) RevokeClientTokens(ctx context.Context, request RevokeClientTokensRequest) (*Response, error) {
-	return execute(ctx, service{transport: c.transport}, opRevokeClientTokens, request, nil)
-}
-
-var opCredits = operation{ID: "credits", Method: "GET", Path: "/v1.2/credits", Parameters: []parameter{{Name: "x-end-user-id", In: "header", Required: false, Explode: false, Schema: json.RawMessage("{\"type\":\"string\"}")}}, BodyFields: []string{}, RequiredBody: false, BodySchema: json.RawMessage("{}"), ResponseSchemas: map[int]json.RawMessage{200: json.RawMessage("{\"$ref\":\"#/components/schemas/CreditsResponseDto\"}")}}
-
-func init() { opCredits.RetryNever = false; opCredits.RetryAmbiguous = true }
-
-// Credits Get your credit balance.
-// Retries are bounded by Config.MaxRetries and the context deadline. Credit exhaustion is never retried.
-func (c *Client) Credits(ctx context.Context, requests ...CreditsRequest) (*CreditsResponseDto, *Response, error) {
-	var request CreditsRequest
-	if len(requests) > 1 {
-		return nil, nil, ErrInvalidInput
-	}
-	if len(requests) == 1 {
-		request = requests[0]
-	}
-	var result CreditsResponseDto
-	response, err := execute(ctx, service{transport: c.transport}, opCredits, request, &result)
-	if err != nil {
-		return nil, response, err
-	}
-	return &result, response, nil
-}
-
 var generatedSchemas = map[string]json.RawMessage{
 	"ActivityLevel":                     json.RawMessage("{\"type\":\"string\",\"enum\":[\"sedentary\",\"lightly_active\",\"moderately_active\",\"very_active\"]}"),
-	"AlternativeFood":                   json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"$ref\":\"#/components/schemas/FoodId\"},\"name\":{\"type\":\"string\"},\"brand_name\":{\"type\":\"string\"},\"nutrients\":{\"$ref\":\"#/components/schemas/CompleteScanNutritionFacts\"},\"servings\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/AlternativeServing\"}}},\"required\":[\"name\",\"nutrients\"]}"),
-	"AlternativeServing":                json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"$ref\":\"#/components/schemas/ServingId\"},\"quantity\":{\"type\":\"number\"},\"unit\":{\"type\":\"string\"}},\"required\":[\"id\",\"unit\"]}"),
-	"ApiErrorDto":                       json.RawMessage("{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\"},\"code\":{\"type\":\"string\"},\"docs_url\":{\"type\":\"string\"}},\"required\":[\"message\",\"code\",\"docs_url\"]}"),
-	"AutocompleteFoodCategory":          json.RawMessage("{\"enum\":[\"general\",\"branded\"],\"type\":\"string\"}"),
+	"AlternativeFood":                   json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\",\"nullable\":true},\"name\":{\"type\":\"string\",\"nullable\":true},\"brand_name\":{\"type\":\"string\",\"nullable\":true},\"nutrients\":{\"$ref\":\"#/components/schemas/NutritionFacts\"},\"servings\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/AlternativeServing\"}}},\"required\":[\"id\",\"name\",\"brand_name\",\"nutrients\",\"servings\"]}"),
+	"AlternativeServing":                json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\",\"nullable\":true},\"quantity\":{\"type\":\"number\",\"nullable\":true},\"unit\":{\"type\":\"string\",\"nullable\":true}},\"required\":[\"id\",\"quantity\",\"unit\"]}"),
+	"AutocompleteFoodCategory":          json.RawMessage("{\"enum\":[\"generic\",\"branded\"],\"type\":\"string\"}"),
 	"AutocompleteFoodsResponse":         json.RawMessage("{\"type\":\"object\",\"properties\":{\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodSuggestion\"}}},\"required\":[\"items\"]}"),
 	"Barcode":                           json.RawMessage("{\"type\":\"string\",\"pattern\":\"^[0-9]{6,14}$\"}"),
 	"CgmReading":                        json.RawMessage("{\"type\":\"object\",\"properties\":{\"timestamp\":{\"type\":\"string\",\"format\":\"date-time\"},\"value\":{\"type\":\"number\"}},\"required\":[\"timestamp\",\"value\"]}"),
-	"ClientTokenResponseDto":            json.RawMessage("{\"type\":\"object\",\"properties\":{\"token\":{\"type\":\"string\"},\"expires_in\":{\"type\":\"number\"},\"expires_at\":{\"type\":\"string\"},\"end_user_id\":{\"type\":\"string\"},\"scopes\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"foods:read\",\"food_scans:write\",\"food_logs:read\",\"food_logs:write\",\"glucose:read\",\"restaurants:read\"]}}},\"required\":[\"token\",\"expires_in\",\"expires_at\",\"end_user_id\",\"scopes\"]}"),
-	"CompleteScanNutritionFacts":        json.RawMessage("{\"type\":\"object\",\"properties\":{\"calories\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"protein\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"carbohydrates\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"net_carbohydrates\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"total_fat\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"saturated_fat\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"fiber\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"total_sugars\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"added_sugars\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"sodium\":{\"$ref\":\"#/components/schemas/NutrientAmount\"}}}"),
-	"ConfidenceScore":                   json.RawMessage("{\"type\":\"string\",\"enum\":[\"high\",\"medium\",\"low\"]}"),
-	"ConsumedHistoricalFood":            json.RawMessage("{\"type\":\"object\",\"properties\":{\"timestamp\":{\"type\":\"string\",\"format\":\"date-time\"},\"id\":{\"$ref\":\"#/components/schemas/FoodId\"},\"serving\":{\"$ref\":\"#/components/schemas/FoodLogInputServing\"}},\"required\":[\"timestamp\",\"id\",\"serving\"]}"),
-	"CorrectPhotoScanBody":              json.RawMessage("{\"type\":\"object\",\"properties\":{\"meal_name\":{\"type\":\"string\"},\"detections\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodDetection\"}},\"user_input\":{\"type\":\"string\"}},\"required\":[\"detections\",\"user_input\"]}"),
-	"CreateClientTokenDto":              json.RawMessage("{\"type\":\"object\",\"properties\":{\"end_user_id\":{\"type\":\"string\",\"maxLength\":64},\"scopes\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"foods:read\",\"food_scans:write\",\"food_logs:read\",\"food_logs:write\",\"glucose:read\",\"restaurants:read\"]}},\"ttl_seconds\":{\"type\":\"number\",\"minimum\":300,\"maximum\":7200}},\"required\":[\"end_user_id\"]}"),
-	"CreateFoodLogBody":                 json.RawMessage("{\"type\":\"object\",\"properties\":{\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"timestamp_utc\":{\"type\":\"string\",\"format\":\"date-time\"},\"name\":{\"type\":\"string\",\"maxLength\":256}},\"required\":[\"foods\"]}"),
-	"CreditsResponseDto":                json.RawMessage("{\"type\":\"object\",\"properties\":{\"plan\":{\"type\":\"string\"},\"period_start\":{\"type\":\"string\"},\"period_end\":{\"type\":\"string\"},\"resets_at\":{\"type\":\"string\"},\"included_credits\":{\"type\":\"number\"},\"used_credits\":{\"type\":\"number\"},\"remaining_credits\":{\"type\":\"number\"}},\"required\":[\"plan\",\"period_start\",\"period_end\",\"resets_at\",\"used_credits\"]}"),
-	"DeleteFoodLogResponse":             json.RawMessage("{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\"}},\"required\":[\"status\"]}"),
-	"DetectedFood":                      json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"$ref\":\"#/components/schemas/FoodId\"},\"name\":{\"type\":\"string\"},\"brand_name\":{\"type\":\"string\"},\"nutrients\":{\"$ref\":\"#/components/schemas/CompleteScanNutritionFacts\"},\"servings\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/DetectedServing\"}}},\"required\":[\"name\",\"nutrients\",\"servings\"]}"),
-	"DetectedServing":                   json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"$ref\":\"#/components/schemas/ServingId\"},\"quantity\":{\"type\":\"number\"},\"unit\":{\"type\":\"string\"},\"selected_quantity\":{\"type\":\"number\"}},\"required\":[\"id\",\"unit\"]}"),
+	"ClientToken":                       json.RawMessage("{\"type\":\"object\",\"properties\":{\"token\":{\"type\":\"string\"},\"expires_in\":{\"type\":\"integer\"},\"expires_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"end_user_id\":{\"type\":\"string\"},\"scopes\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"foods:read\",\"food_analysis:write\",\"food_logs:read\",\"food_logs:write\",\"glucose:read\",\"restaurants:read\"]}}},\"required\":[\"token\",\"expires_in\",\"expires_at\",\"end_user_id\",\"scopes\"]}"),
+	"ClientTokenRevocationResult":       json.RawMessage("{\"type\":\"object\",\"properties\":{\"revoked_count\":{\"type\":\"integer\"}},\"required\":[\"revoked_count\"]}"),
+	"ConfidenceScore":                   json.RawMessage("{\"type\":\"string\",\"enum\":[\"high\",\"medium\",\"low\"],\"nullable\":true}"),
+	"ConsumedHistoricalFood":            json.RawMessage("{\"type\":\"object\",\"properties\":{\"timestamp\":{\"type\":\"string\",\"format\":\"date-time\"},\"food_id\":{\"type\":\"string\"},\"serving_id\":{\"type\":\"string\"},\"quantity\":{\"type\":\"number\",\"minimum\":0,\"exclusiveMinimum\":true,\"maximum\":10000}},\"required\":[\"timestamp\",\"food_id\",\"serving_id\",\"quantity\"]}"),
+	"CorrectPhotoScanBody":              json.RawMessage("{\"type\":\"object\",\"properties\":{\"analysis\":{\"allOf\":[{\"$ref\":\"#/components/schemas/FoodScan\"}]},\"instruction\":{\"type\":\"string\",\"maxLength\":1000}},\"required\":[\"analysis\",\"instruction\"]}"),
+	"CreateClientTokenBody":             json.RawMessage("{\"type\":\"object\",\"properties\":{\"end_user_id\":{\"type\":\"string\",\"maxLength\":64},\"scopes\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"foods:read\",\"food_analysis:write\",\"food_logs:read\",\"food_logs:write\",\"glucose:read\",\"restaurants:read\"]}},\"ttl_seconds\":{\"type\":\"integer\",\"minimum\":300,\"maximum\":7200}},\"required\":[\"end_user_id\",\"scopes\"]}"),
+	"CreateFoodLogBody":                 json.RawMessage("{\"type\":\"object\",\"properties\":{\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"eaten_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"name\":{\"type\":\"string\",\"maxLength\":256}},\"required\":[\"foods\"]}"),
+	"CreditBalance":                     json.RawMessage("{\"type\":\"object\",\"properties\":{\"plan\":{\"type\":\"string\"},\"period_start\":{\"type\":\"string\",\"format\":\"date\"},\"period_end\":{\"type\":\"string\",\"format\":\"date\"},\"resets_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"included_credits\":{\"type\":\"integer\",\"nullable\":true},\"used_credits\":{\"type\":\"integer\"},\"remaining_credits\":{\"type\":\"integer\",\"nullable\":true}},\"required\":[\"plan\",\"period_start\",\"period_end\",\"resets_at\",\"included_credits\",\"used_credits\",\"remaining_credits\"]}"),
+	"DetectedFood":                      json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\",\"nullable\":true},\"name\":{\"type\":\"string\",\"nullable\":true},\"brand_name\":{\"type\":\"string\",\"nullable\":true},\"nutrients\":{\"$ref\":\"#/components/schemas/NutritionFacts\"},\"servings\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/DetectedServing\"}}},\"required\":[\"id\",\"name\",\"brand_name\",\"nutrients\",\"servings\"]}"),
+	"DetectedServing":                   json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\",\"nullable\":true},\"quantity\":{\"type\":\"number\",\"nullable\":true},\"unit\":{\"type\":\"string\",\"nullable\":true},\"selected_quantity\":{\"type\":\"number\",\"nullable\":true}},\"required\":[\"id\",\"quantity\",\"unit\",\"selected_quantity\"]}"),
 	"DietPreference":                    json.RawMessage("{\"type\":\"string\",\"enum\":[\"vegetarian\",\"vegan\",\"keto\",\"paleo\",\"pescatarian\",\"low_carbohydrate\",\"high_protein\",\"kosher\",\"halal\"]}"),
 	"DietRestriction":                   json.RawMessage("{\"type\":\"string\",\"enum\":[\"gluten\",\"lactose\",\"yeast\",\"tree_nuts\",\"peanuts\",\"dairy\",\"eggs\",\"sulfites\",\"soy\",\"wheat\",\"shellfish\",\"fish\",\"mushrooms\",\"sesame\",\"msg\",\"caffeine\",\"fodmaps\"]}"),
-	"ErrorResponse":                     json.RawMessage("{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\"},\"code\":{\"type\":\"string\"},\"docs_url\":{\"type\":\"string\"}},\"required\":[\"message\",\"code\",\"docs_url\"]}"),
-	"FoodAlternative":                   json.RawMessage("{\"type\":\"object\",\"properties\":{\"food\":{\"$ref\":\"#/components/schemas/AlternativeFood\"}},\"required\":[\"food\"]}"),
-	"FoodCategory":                      json.RawMessage("{\"enum\":[\"general\",\"branded\",\"recipe\"],\"type\":\"string\"}"),
-	"FoodDetection":                     json.RawMessage("{\"type\":\"object\",\"properties\":{\"confidence_score\":{\"$ref\":\"#/components/schemas/ConfidenceScore\"},\"food\":{\"$ref\":\"#/components/schemas/DetectedFood\"}},\"required\":[\"food\"]}"),
-	"FoodId":                            json.RawMessage("{\"type\":\"integer\",\"format\":\"int64\",\"minimum\":0,\"maximum\":9007199254740991}"),
-	"FoodLog":                           json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"$ref\":\"#/components/schemas/FoodLogId\"},\"foods\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/LoggedFood\"}},\"timestamp_utc\":{\"type\":\"string\",\"format\":\"january-api-timestamp\"},\"name\":{\"type\":\"string\",\"nullable\":true}},\"required\":[\"id\",\"foods\",\"timestamp_utc\"]}"),
+	"ErrorResponse":                     json.RawMessage("{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\"},\"code\":{\"type\":\"string\"}},\"required\":[\"message\",\"code\"]}"),
+	"FoodCategory":                      json.RawMessage("{\"enum\":[\"generic\",\"branded\",\"recipe\"],\"type\":\"string\"}"),
+	"FoodDetection":                     json.RawMessage("{\"type\":\"object\",\"properties\":{\"confidence\":{\"$ref\":\"#/components/schemas/ConfidenceScore\"},\"food\":{\"$ref\":\"#/components/schemas/DetectedFood\"}},\"required\":[\"confidence\",\"food\"]}"),
+	"FoodId":                            json.RawMessage("{\"type\":\"string\",\"format\":\"opaque\",\"pattern\":\"^[0-9]{1,16}$\"}"),
+	"FoodLog":                           json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\",\"nullable\":true},\"foods\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/LoggedFood\"}},\"eaten_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"name\":{\"type\":\"string\",\"nullable\":true}},\"required\":[\"id\",\"foods\",\"eaten_at\",\"name\"]}"),
 	"FoodLogId":                         json.RawMessage("{\"type\":\"string\",\"format\":\"uuid\"}"),
-	"FoodLogInputFood":                  json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"$ref\":\"#/components/schemas/FoodId\"},\"serving\":{\"$ref\":\"#/components/schemas/FoodLogInputServing\"}},\"required\":[\"id\",\"serving\"]}"),
-	"FoodLogInputServing":               json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"$ref\":\"#/components/schemas/ServingId\"},\"quantity\":{\"type\":\"number\",\"maximum\":10000}},\"required\":[\"id\",\"quantity\"]}"),
-	"FoodScan":                          json.RawMessage("{\"type\":\"object\",\"properties\":{\"meal_name\":{\"type\":\"string\"},\"total_nutrients\":{\"allOf\":[{\"$ref\":\"#/components/schemas/CompleteScanNutritionFacts\"}]},\"detections\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodDetection\"}}},\"required\":[\"detections\"]}"),
-	"FoodSearchItem":                    json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"$ref\":\"#/components/schemas/FoodId\"},\"name\":{\"type\":\"string\"},\"brand_name\":{\"type\":\"string\"},\"nutrients\":{\"allOf\":[{\"$ref\":\"#/components/schemas/NutritionFacts\"}]},\"glycemic_index\":{\"type\":\"number\"},\"glycemic_load\":{\"type\":\"number\"},\"image_url\":{\"type\":\"string\"},\"upc\":{\"type\":\"string\"},\"servings\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/ServingOption\"}}},\"required\":[\"id\",\"name\",\"nutrients\",\"servings\"]}"),
-	"FoodSearchResults":                 json.RawMessage("{\"type\":\"object\",\"properties\":{\"total_count\":{\"type\":\"number\"},\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodSearchItem\"}}},\"required\":[\"total_count\",\"items\"]}"),
-	"FoodSuggestion":                    json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"$ref\":\"#/components/schemas/FoodId\"},\"name\":{\"type\":\"string\"},\"brand_name\":{\"type\":\"string\"},\"image_url\":{\"type\":\"string\"},\"nutrients\":{\"allOf\":[{\"$ref\":\"#/components/schemas/NutritionFacts\"}]}},\"required\":[\"id\",\"name\"]}"),
-	"GlucoseChart":                      json.RawMessage("{\"type\":\"object\",\"properties\":{\"min\":{\"type\":\"number\"},\"max\":{\"type\":\"number\"}},\"required\":[\"min\",\"max\"]}"),
-	"GlucoseImpact":                     json.RawMessage("{\"type\":\"string\",\"enum\":[\"low\",\"medium\",\"high\"]}"),
-	"GlucosePrediction":                 json.RawMessage("{\"type\":\"object\",\"properties\":{\"prediction\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/GlucosePredictionPoint\"}},\"impact_score\":{\"$ref\":\"#/components/schemas/GlucoseImpact\"},\"chart\":{\"$ref\":\"#/components/schemas/GlucoseChart\"}},\"required\":[\"prediction\",\"impact_score\",\"chart\"]}"),
-	"GlucosePredictionPoint":            json.RawMessage("{\"type\":\"object\",\"properties\":{\"minutes\":{\"type\":\"number\"},\"value\":{\"type\":\"number\"}},\"required\":[\"minutes\",\"value\"]}"),
+	"FoodLogInputFood":                  json.RawMessage("{\"type\":\"object\",\"properties\":{\"food_id\":{\"$ref\":\"#/components/schemas/FoodId\"},\"serving_id\":{\"$ref\":\"#/components/schemas/ServingId\"},\"quantity\":{\"type\":\"number\",\"minimum\":0,\"exclusiveMinimum\":true,\"maximum\":10000}},\"required\":[\"food_id\",\"serving_id\",\"quantity\"]}"),
+	"FoodScan":                          json.RawMessage("{\"type\":\"object\",\"properties\":{\"meal_name\":{\"type\":\"string\",\"nullable\":true},\"total_nutrients\":{\"allOf\":[{\"$ref\":\"#/components/schemas/NutritionFacts\"}]},\"detections\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodDetection\"}}},\"required\":[\"meal_name\",\"total_nutrients\",\"detections\"]}"),
+	"FoodSearchItem":                    json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"type\":{\"type\":\"string\",\"enum\":[\"generic\",\"branded\",\"recipe\"]},\"name\":{\"type\":\"string\",\"nullable\":true},\"brand_name\":{\"type\":\"string\",\"nullable\":true},\"nutrients\":{\"allOf\":[{\"$ref\":\"#/components/schemas/NutritionFacts\"}]},\"glycemic_index\":{\"type\":\"number\",\"nullable\":true},\"glycemic_load\":{\"type\":\"number\",\"nullable\":true},\"image_url\":{\"type\":\"string\",\"nullable\":true},\"barcode\":{\"type\":\"string\",\"nullable\":true},\"servings\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/ServingOption\"}}},\"required\":[\"id\",\"type\",\"name\",\"brand_name\",\"nutrients\",\"glycemic_index\",\"glycemic_load\",\"image_url\",\"barcode\",\"servings\"]}"),
+	"FoodSearchResults":                 json.RawMessage("{\"type\":\"object\",\"properties\":{\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodSearchItem\"}}},\"required\":[\"items\"]}"),
+	"FoodSuggestion":                    json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"type\":{\"type\":\"string\",\"enum\":[\"generic\",\"branded\"]},\"name\":{\"type\":\"string\",\"nullable\":true},\"brand_name\":{\"type\":\"string\",\"nullable\":true},\"image_url\":{\"type\":\"string\",\"nullable\":true},\"nutrients\":{\"allOf\":[{\"$ref\":\"#/components/schemas/NutritionFacts\"}]}},\"required\":[\"id\",\"type\",\"name\",\"brand_name\",\"image_url\",\"nutrients\"]}"),
+	"GetRestaurantMenuItemsResponse":    json.RawMessage("{\"type\":\"object\",\"properties\":{\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/RestaurantMenuItem\"}}},\"required\":[\"items\"]}"),
+	"GlucoseChart":                      json.RawMessage("{\"type\":\"object\",\"properties\":{\"min\":{\"type\":\"number\",\"nullable\":true},\"max\":{\"type\":\"number\",\"nullable\":true}},\"required\":[\"min\",\"max\"]}"),
+	"GlucoseImpact":                     json.RawMessage("{\"type\":\"string\",\"enum\":[\"low\",\"medium\",\"high\"],\"nullable\":true}"),
+	"GlucosePrediction":                 json.RawMessage("{\"type\":\"object\",\"properties\":{\"points\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/GlucosePredictionPoint\"}},\"impact_score\":{\"$ref\":\"#/components/schemas/GlucoseImpact\"},\"chart\":{\"$ref\":\"#/components/schemas/GlucoseChart\"}},\"required\":[\"points\",\"impact_score\",\"chart\"]}"),
+	"GlucosePredictionPoint":            json.RawMessage("{\"type\":\"object\",\"properties\":{\"minutes\":{\"type\":\"integer\"},\"value\":{\"type\":\"number\"}},\"required\":[\"minutes\",\"value\"]}"),
 	"GlucosePredictionProfile":          json.RawMessage("{\"type\":\"object\",\"properties\":{\"age\":{\"type\":\"number\"},\"sex\":{\"$ref\":\"#/components/schemas/Sex\"},\"height\":{\"$ref\":\"#/components/schemas/Height\"},\"weight\":{\"$ref\":\"#/components/schemas/Weight\"},\"activity_level\":{\"$ref\":\"#/components/schemas/ActivityLevel\"},\"health_conditions\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/MedicalCondition\"}}},\"required\":[\"age\",\"sex\",\"height\",\"weight\"]}"),
 	"Height":                            json.RawMessage("{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"number\"},\"unit\":{\"$ref\":\"#/components/schemas/HeightUnit\"}},\"required\":[\"value\",\"unit\"]}"),
 	"HeightUnit":                        json.RawMessage("{\"type\":\"string\",\"enum\":[\"in\",\"cm\"]}"),
-	"ListFoodLogsResponse":              json.RawMessage("{\"type\":\"object\",\"properties\":{\"total_count\":{\"type\":\"number\"},\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLog\"}}},\"required\":[\"total_count\",\"items\"]}"),
-	"LoggedFood":                        json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"$ref\":\"#/components/schemas/FoodId\"},\"name\":{\"type\":\"string\"},\"brand_name\":{\"type\":\"string\",\"nullable\":true},\"image_url\":{\"type\":\"string\",\"nullable\":true},\"glycemic_index\":{\"type\":\"number\",\"nullable\":true},\"glycemic_load\":{\"type\":\"number\",\"nullable\":true},\"nutrients\":{\"allOf\":[{\"$ref\":\"#/components/schemas/NutritionFacts\"}]},\"consumed_serving\":{\"allOf\":[{\"$ref\":\"#/components/schemas/FoodLogInputServing\"}]},\"serving_details\":{\"allOf\":[{\"$ref\":\"#/components/schemas/ServingDetails\"}]}},\"required\":[\"id\",\"name\",\"nutrients\",\"consumed_serving\",\"serving_details\"]}"),
+	"ListFoodLogsResponse":              json.RawMessage("{\"type\":\"object\",\"properties\":{\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLog\"}}},\"required\":[\"items\"]}"),
+	"LoggedFood":                        json.RawMessage("{\"type\":\"object\",\"properties\":{\"food_id\":{\"type\":\"string\",\"nullable\":true},\"name\":{\"type\":\"string\",\"nullable\":true},\"brand_name\":{\"type\":\"string\",\"nullable\":true},\"image_url\":{\"type\":\"string\",\"nullable\":true},\"glycemic_index\":{\"type\":\"number\",\"nullable\":true},\"glycemic_load\":{\"type\":\"number\",\"nullable\":true},\"nutrients\":{\"allOf\":[{\"$ref\":\"#/components/schemas/NutritionFacts\"}]},\"quantity\":{\"type\":\"number\",\"nullable\":true},\"serving\":{\"allOf\":[{\"$ref\":\"#/components/schemas/ServingDetails\"}]}},\"required\":[\"food_id\",\"name\",\"brand_name\",\"image_url\",\"glycemic_index\",\"glycemic_load\",\"nutrients\",\"quantity\",\"serving\"]}"),
 	"MedicalCondition":                  json.RawMessage("{\"type\":\"string\",\"enum\":[\"type_2_diabetes\",\"prediabetes\"]}"),
 	"NutrientAmount":                    json.RawMessage("{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"number\"},\"unit\":{\"type\":\"string\"}},\"required\":[\"value\",\"unit\"]}"),
-	"NutritionFacts":                    json.RawMessage("{\"type\":\"object\",\"properties\":{\"calories\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"protein\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"carbohydrates\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"net_carbohydrates\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"total_fat\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"trans_fat\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"saturated_fat\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"fiber\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"total_sugars\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"added_sugars\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"cholesterol\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"calcium\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"iron\":{\"allOf\":[{\"$ref\":\"#/components/schemas/NutrientAmount\"}]},\"potassium\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"sodium\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"vitamin_d\":{\"allOf\":[{\"$ref\":\"#/components/schemas/NutrientAmount\"}]}}}"),
+	"NutritionFacts":                    json.RawMessage("{\"type\":\"object\",\"properties\":{\"calories\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"protein\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"carbohydrates\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"net_carbohydrates\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"total_fat\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"trans_fat\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"saturated_fat\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"fiber\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"total_sugars\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"added_sugars\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"cholesterol\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"calcium\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"iron\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"potassium\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"sodium\":{\"$ref\":\"#/components/schemas/NutrientAmount\"},\"vitamin_d\":{\"$ref\":\"#/components/schemas/NutrientAmount\"}}}"),
 	"PartnerUserId":                     json.RawMessage("{\"type\":\"string\",\"format\":\"opaque\",\"minLength\":1}"),
-	"PredictGlucoseBody":                json.RawMessage("{\"type\":\"object\",\"properties\":{\"user_profile\":{\"$ref\":\"#/components/schemas/GlucosePredictionProfile\"},\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"start_time\":{\"type\":\"string\",\"format\":\"date-time\"},\"cgm_data\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/CgmReading\"}},\"consumed_foods\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/ConsumedHistoricalFood\"}}},\"required\":[\"user_profile\",\"foods\",\"start_time\"]}"),
-	"Restaurant":                        json.RawMessage("{\"type\":\"object\",\"properties\":{\"type\":{\"type\":\"string\",\"enum\":[\"restaurant\",\"menu_item\"]},\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"is_chain\":{\"type\":\"boolean\"},\"distance\":{\"type\":\"number\"},\"city\":{\"type\":\"string\"},\"address1\":{\"type\":\"string\"},\"address2\":{\"type\":\"string\"}},\"required\":[\"type\",\"id\",\"name\"]}"),
-	"RestaurantMenuItem":                json.RawMessage("{\"type\":\"object\",\"properties\":{\"type\":{\"type\":\"string\"},\"id\":{\"$ref\":\"#/components/schemas/RestaurantMenuItemId\"},\"name\":{\"type\":\"string\"},\"restaurant_name\":{\"type\":\"string\"},\"is_chain\":{\"type\":\"boolean\"},\"nutrients\":{\"allOf\":[{\"$ref\":\"#/components/schemas/NutritionFacts\"}]},\"glycemic_index\":{\"type\":\"number\"},\"glycemic_load\":{\"type\":\"number\"},\"image_url\":{\"type\":\"string\"},\"distance\":{\"type\":\"number\"},\"servings\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/ServingOption\"}}},\"required\":[\"type\",\"id\",\"name\",\"restaurant_name\",\"servings\"]}"),
+	"PredictGlucoseBody":                json.RawMessage("{\"type\":\"object\",\"properties\":{\"user_profile\":{\"$ref\":\"#/components/schemas/GlucosePredictionProfile\"},\"timezone\":{\"type\":\"string\"},\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"start_time\":{\"type\":\"string\",\"format\":\"date-time\"},\"cgm_data\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/CgmReading\"}},\"consumed_foods\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/ConsumedHistoricalFood\"}}},\"required\":[\"user_profile\",\"timezone\",\"foods\",\"start_time\"]}"),
+	"Restaurant":                        json.RawMessage("{\"type\":\"object\",\"properties\":{\"type\":{\"type\":\"string\",\"enum\":[\"restaurant\"]},\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\",\"nullable\":true},\"is_chain\":{\"type\":\"boolean\",\"nullable\":true},\"distance_meters\":{\"type\":\"number\",\"nullable\":true},\"city\":{\"type\":\"string\",\"nullable\":true},\"address1\":{\"type\":\"string\",\"nullable\":true},\"address2\":{\"type\":\"string\",\"nullable\":true}},\"required\":[\"type\",\"id\",\"name\",\"is_chain\",\"distance_meters\",\"city\",\"address1\",\"address2\"]}"),
+	"RestaurantMenuItem":                json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\",\"nullable\":true},\"name\":{\"type\":\"string\",\"nullable\":true},\"nutrients\":{\"allOf\":[{\"$ref\":\"#/components/schemas/NutritionFacts\"}]},\"glycemic_index\":{\"type\":\"number\",\"nullable\":true},\"glycemic_load\":{\"type\":\"number\",\"nullable\":true},\"servings\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/ServingOption\"}}},\"required\":[\"id\",\"name\",\"nutrients\",\"glycemic_index\",\"glycemic_load\",\"servings\"]}"),
 	"RestaurantMenuItemId":              json.RawMessage("{\"type\":\"string\",\"format\":\"opaque\",\"minLength\":1}"),
+	"RestaurantMenuSearchItem":          json.RawMessage("{\"type\":\"object\",\"properties\":{\"type\":{\"type\":\"string\",\"enum\":[\"menu_item\"]},\"id\":{\"$ref\":\"#/components/schemas/RestaurantMenuItemId\"},\"name\":{\"type\":\"string\",\"nullable\":true},\"restaurant_name\":{\"type\":\"string\",\"nullable\":true},\"is_chain\":{\"type\":\"boolean\",\"nullable\":true},\"nutrients\":{\"allOf\":[{\"$ref\":\"#/components/schemas/NutritionFacts\"}]},\"glycemic_index\":{\"type\":\"number\",\"nullable\":true},\"glycemic_load\":{\"type\":\"number\",\"nullable\":true},\"image_url\":{\"type\":\"string\",\"nullable\":true},\"distance_meters\":{\"type\":\"number\",\"nullable\":true},\"servings\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/ServingOption\"}}},\"required\":[\"type\",\"id\",\"name\",\"restaurant_name\",\"is_chain\",\"nutrients\",\"glycemic_index\",\"glycemic_load\",\"image_url\",\"distance_meters\",\"servings\"]}"),
+	"RevokeClientTokensBody":            json.RawMessage("{\"type\":\"object\",\"properties\":{\"end_user_id\":{\"type\":\"string\",\"maxLength\":64}},\"required\":[\"end_user_id\"]}"),
 	"ScanFoodPhotoBody":                 json.RawMessage("{\"type\":\"object\",\"properties\":{\"image\":{\"type\":\"string\"}},\"required\":[\"image\"]}"),
 	"SearchFoodsByNaturalLanguageBody":  json.RawMessage("{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"maxLength\":512}},\"required\":[\"text\"]}"),
-	"SearchRestaurantMenuItemsResponse": json.RawMessage("{\"type\":\"object\",\"properties\":{\"total_count\":{\"type\":\"number\"},\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/RestaurantMenuItem\"}}},\"required\":[\"total_count\",\"items\"]}"),
-	"SearchRestaurantsResponse":         json.RawMessage("{\"type\":\"object\",\"properties\":{\"total_count\":{\"type\":\"number\"},\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/Restaurant\"}}},\"required\":[\"total_count\",\"items\"]}"),
-	"ServingDetails":                    json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"$ref\":\"#/components/schemas/ServingId\"},\"quantity\":{\"type\":\"number\"},\"unit\":{\"type\":\"string\"},\"weight_grams\":{\"type\":\"number\",\"nullable\":true}},\"required\":[\"id\",\"quantity\",\"unit\"]}"),
-	"ServingId":                         json.RawMessage("{\"type\":\"integer\",\"format\":\"int64\",\"minimum\":0,\"maximum\":9007199254740991}"),
-	"ServingOption":                     json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"$ref\":\"#/components/schemas/ServingId\"},\"quantity\":{\"type\":\"number\"},\"unit\":{\"type\":\"string\"},\"scaling_factor\":{\"type\":\"number\"},\"weight_grams\":{\"type\":\"number\",\"nullable\":true},\"is_primary\":{\"type\":\"boolean\"}},\"required\":[\"id\",\"quantity\",\"unit\",\"scaling_factor\",\"weight_grams\",\"is_primary\"]}"),
+	"SearchRestaurantMenuItemsResponse": json.RawMessage("{\"type\":\"object\",\"properties\":{\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/RestaurantMenuSearchItem\"}}},\"required\":[\"items\"]}"),
+	"SearchRestaurantsResponse":         json.RawMessage("{\"type\":\"object\",\"properties\":{\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/Restaurant\"}}},\"required\":[\"items\"]}"),
+	"ServingDetails":                    json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\",\"nullable\":true},\"quantity\":{\"type\":\"number\",\"nullable\":true},\"unit\":{\"type\":\"string\",\"nullable\":true},\"weight_grams\":{\"type\":\"number\",\"nullable\":true}},\"required\":[\"id\",\"quantity\",\"unit\",\"weight_grams\"]}"),
+	"ServingId":                         json.RawMessage("{\"type\":\"string\",\"format\":\"opaque\",\"pattern\":\"^[0-9]{1,16}$\"}"),
+	"ServingOption":                     json.RawMessage("{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\",\"nullable\":true},\"quantity\":{\"type\":\"number\",\"nullable\":true},\"unit\":{\"type\":\"string\",\"nullable\":true},\"scaling_factor\":{\"type\":\"number\",\"nullable\":true},\"weight_grams\":{\"type\":\"number\",\"nullable\":true},\"is_primary\":{\"type\":\"boolean\",\"nullable\":true}},\"required\":[\"id\",\"quantity\",\"unit\",\"scaling_factor\",\"weight_grams\",\"is_primary\"]}"),
 	"Sex":                               json.RawMessage("{\"type\":\"string\",\"enum\":[\"male\",\"female\"]}"),
-	"SuggestFoodAlternativesBody":       json.RawMessage("{\"type\":\"object\",\"properties\":{\"diet_restrictions\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/DietRestriction\"},\"minItems\":1},\"diet_preferences\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/DietPreference\"},\"minItems\":1}}}"),
-	"SuggestFoodAlternativesResponse":   json.RawMessage("{\"type\":\"object\",\"properties\":{\"alternatives\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodAlternative\"}}},\"required\":[\"alternatives\"]}"),
-	"UpdateFoodLogBody":                 json.RawMessage("{\"type\":\"object\",\"properties\":{\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"timestamp_utc\":{\"type\":\"string\"},\"name\":{\"type\":\"string\",\"maxLength\":256}}}"),
+	"SuggestFoodAlternativesBody":       json.RawMessage("{\"type\":\"object\",\"properties\":{\"diet_restrictions\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/DietRestriction\"}},\"diet_preferences\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/DietPreference\"}}}}"),
+	"SuggestFoodAlternativesResponse":   json.RawMessage("{\"type\":\"object\",\"properties\":{\"alternatives\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/AlternativeFood\"}}},\"required\":[\"alternatives\"]}"),
+	"UpdateFoodLogBody":                 json.RawMessage("{\"type\":\"object\",\"properties\":{\"foods\":{\"maxItems\":100,\"type\":\"array\",\"items\":{\"$ref\":\"#/components/schemas/FoodLogInputFood\"}},\"eaten_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"name\":{\"type\":\"string\",\"maxLength\":256}}}"),
 	"Weight":                            json.RawMessage("{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"number\"},\"unit\":{\"$ref\":\"#/components/schemas/WeightUnit\"}},\"required\":[\"value\",\"unit\"]}"),
 	"WeightUnit":                        json.RawMessage("{\"type\":\"string\",\"enum\":[\"lb\",\"kg\"]}"),
 }
 
 func (c *Client) mintLegacy(ctx context.Context, input CreateClientTokenInput, pathOverride string) (ClientToken, error) {
-	request := MintClientTokenRequest{EndUserID: strings.TrimSpace(input.EndUserID)}
-	if input.Scopes != nil {
-		request.Scopes = Value(input.Scopes)
-	}
+	request := CreateClientTokenRequest{EndUserID: strings.TrimSpace(input.EndUserID), Scopes: append([]string(nil), input.Scopes...)}
 	if input.TTLSeconds != nil {
-		request.TTLSeconds = Value(float64(*input.TTLSeconds))
+		request.TTLSeconds = Value(int64(*input.TTLSeconds))
 	}
-	op := opMintClientToken
+	op := opCreateClientToken
 	op.RetryNever = true // Preserve the prototype issuer single-request behavior.
 	if pathOverride != "" {
 		op.Path = pathOverride
 	}
-	var token ClientTokenResponseDto
+	var token ClientToken
 	response, err := execute(ctx, service{transport: c.transport}, op, request, &token)
 	if err != nil {
 		if te, ok := err.(*TransportError); ok && te.Kind == "invalid JSON response" {
@@ -413,8 +441,8 @@ func (c *Client) mintLegacy(ctx context.Context, input CreateClientTokenInput, p
 		}
 		return ClientToken{}, err
 	}
-	if token.Token == "" || token.ExpiresIn <= 0 || math.Trunc(token.ExpiresIn) != token.ExpiresIn {
+	if token.Token == "" || token.ExpiresIn <= 0 {
 		return ClientToken{}, &APIError{StatusCode: 502, Message: "Invalid token response", Response: response}
 	}
-	return ClientToken{Token: token.Token, AccessToken: token.Token, TokenType: "Bearer", ExpiresIn: int(token.ExpiresIn), ExpiresAt: token.ExpiresAt}, nil
+	return token, nil
 }

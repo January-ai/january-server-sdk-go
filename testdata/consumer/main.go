@@ -11,10 +11,12 @@ import (
 )
 
 func main() {
+	name, servingID := "Installed consumer fake food", "1"
+	servingQuantity, scaling, primary := 2.0, 3.0, true
 	food := january.FoodSearchItem{
-		ID: 42, Name: "Installed consumer fake food",
+		ID: "42", Name: &name,
 		Nutrients: january.NutritionFacts{Calories: january.Value(january.NutrientAmount{Value: 100, Unit: "kcal"})},
-		Servings:  []january.ServingOption{{ID: 1, Quantity: 2, ScalingFactor: 3, IsPrimary: true}},
+		Servings:  []january.ServingOption{{ID: &servingID, Quantity: &servingQuantity, ScalingFactor: &scaling, IsPrimary: &primary}},
 	}
 	var options january.FoodPortionOptions
 	options.Quantity = january.Value(4.0)
@@ -29,7 +31,7 @@ func main() {
 	}
 	logInput := january.CreateFoodLogRequest{Foods: []january.FoodLogInputFood{portion.Selection}}
 	glucoseInput := january.PredictGlucoseRequest{Foods: []january.FoodLogInputFood{portion.Selection}}
-	if logInput.Foods[0] != glucoseInput.Foods[0] || logInput.Foods[0].Serving.Quantity != 4 {
+	if logInput.Foods[0] != glucoseInput.Foods[0] || logInput.Foods[0].Quantity != 4 {
 		panic("installed selection type mismatch")
 	}
 	if _, err = food.Portion(january.FoodPortionOptions{}); err != nil {
@@ -67,7 +69,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if string(encoded) != `{"token":"ct-installed","expiresIn":300}` {
+	if string(encoded) != `{"end_user_id":"user","expires_at":"2026-08-30T18:30:00Z","expires_in":300,"scopes":["foods:read"],"token":"ct-installed"}` {
 		panic(string(encoded))
 	}
 	fmt.Println("Installed Go module consumer: real HTTP token flow passed")
