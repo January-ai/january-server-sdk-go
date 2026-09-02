@@ -409,3 +409,7 @@ installation tests.
 - [Generated operation surface](sdk-surface.json) and [contract lock](sdk-contract.lock.json)
 - [Contributing, generation, builds, and compatibility](CONTRIBUTING.md)
 - For support and feedback, email [support@january.ai](mailto:support@january.ai).
+
+## License
+
+The Apache 2.0 license applies to the source code in this repository. It does not grant rights to nutrition data, food images, or other content returned by the January API, which are subject to the January API Developer Terms.
