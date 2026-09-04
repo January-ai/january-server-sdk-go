@@ -1,8 +1,8 @@
 # January Server SDK for Go
 
 [![CI](https://github.com/January-ai/january-server-sdk-go/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/January-ai/january-server-sdk-go/actions/workflows/ci.yml)
-[![Go 1.26+](https://img.shields.io/badge/go-1.26%2B-00ADD8.svg)](go.mod)
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Go 1.26+](https://img.shields.io/badge/go-1.26%2B-00ADD8.svg)](https://github.com/January-ai/january-server-sdk-go/blob/main/go.mod)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/January-ai/january-server-sdk-go/blob/main/LICENSE)
 
 Typed Go access to January food search, analysis, food logs, and glucose prediction,
 plus server-only token and credit operations. Requires Go 1.26 or newer.
