@@ -501,7 +501,7 @@ installation tests.
 
 Maintainers publish a Go release by pushing a semantic version tag. The release
 workflow verifies that commit and creates a draft GitHub release for review.
-The repository must be public before external users can resolve the documented
+Because the repository is public, external users can resolve the documented
 module path without private GitHub credentials.
 
 ## Reference, support, and contributing
