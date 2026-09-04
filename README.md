@@ -1,11 +1,76 @@
-# January server SDK for Go
+# January Server SDK for Go
 
 Typed Go access to January food search, analysis, food logs, and glucose prediction,
 plus server-only token and credit operations. Requires Go 1.26 or newer.
 
 Keep secret API keys on trusted servers, never in browser or mobile apps.
 
+## Quick start
+
+### 1. Create and configure a server API key
+
+[Sign in to the Developer Dashboard](https://dashboard.january.ai/dashboard),
+open **API keys → Create key**, and copy the full `sk-…` value when it is shown.
+Keep it on your trusted backend and never commit it.
+
+```sh
+export JANUARY_API_KEY=sk-your-server-api-key
+```
+
+### 2. Install, connect, and make the first request
+
+```sh
+go get github.com/January-ai/january-server-sdk-go@latest
+```
+
+Save this as `main.go`:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"github.com/January-ai/january-server-sdk-go/january"
+)
+
+func main() {
+	client, err := january.NewClient(january.Config{
+		SecretKey: os.Getenv("JANUARY_API_KEY"),
+	})
+	if err != nil {
+		panic(err)
+	}
+	user, err := client.ForUser("january-quickstart", "UTC")
+	if err != nil {
+		panic(err)
+	}
+	foods, _, err := user.Foods.Search(
+		context.Background(),
+		january.SearchFoodsRequest{Query: "banana"},
+	)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Found %d foods\n", len(foods.Items))
+}
+```
+
+Run it with `go run .`. A successful request prints a result count; an empty
+result is still a successful connection. Replace the synthetic ID with the
+stable ID from your authenticated server session. This read-only request may
+consume API credits.
+
+This server SDK accepts server API keys (`sk-…`), not client tokens (`ct-…`).
+Client tokens are needed only when your backend serves a browser or mobile app;
+see [server-only APIs](#server-only-apis) for token creation.
+
 ## Before you begin
+
+<details>
+<summary>Account, billing, and new-module details</summary>
 
 1. [Sign up](https://dashboard.january.ai/sign-up) or
    [sign in](https://dashboard.january.ai/sign-in) to the developer platform.
@@ -45,11 +110,12 @@ go get github.com/January-ai/january-server-sdk-go@latest
 
 Import the client package as `github.com/January-ai/january-server-sdk-go/january`.
 
-## Quickstart: search for banana
+</details>
 
-The complete [examples/quickstart/main.go](examples/quickstart/main.go) below makes
-one food-search request and prints the result count and first food name, or a
-no-results message. It does not create logs, mint tokens, or check credits.
+## Complete diagnostic example
+
+The tested [repository example](examples/quickstart/main.go) adds `.env` loading,
+credential checks, timeouts, and sanitized error handling to the same request.
 
 Save the Go example below as `main.go` in your application directory. Install
 `godotenv`, an application helper for local `.env` loading (not SDK configuration):
@@ -102,6 +168,9 @@ the key explicitly to `NewClient`. The separate [live E2E runner](docs/live-test
 has its own loader. The quickstart uses the synthetic user `january-quickstart`
 and timezone UTC. In production, derive the user ID from your authenticated user,
 not caller-supplied identity.
+
+<details>
+<summary>Complete diagnostic source</summary>
 
 <!-- quickstart:start -->
 ```go
@@ -202,6 +271,8 @@ func printSearchFailure(stderr io.Writer, err error) {
 }
 ```
 <!-- quickstart:end -->
+
+</details>
 
 ## Common tasks and resources
 
