@@ -1,9 +1,26 @@
 # January Server SDK for Go
 
+[![CI](https://github.com/January-ai/january-server-sdk-go/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/January-ai/january-server-sdk-go/actions/workflows/ci.yml)
+[![Go 1.26+](https://img.shields.io/badge/go-1.26%2B-00ADD8.svg)](https://github.com/January-ai/january-server-sdk-go/blob/main/go.mod)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/January-ai/january-server-sdk-go/blob/main/LICENSE)
+
 Typed Go access to January food search, analysis, food logs, and glucose prediction,
 plus server-only token and credit operations. Requires Go 1.26 or newer.
 
 Keep secret API keys on trusted servers, never in browser or mobile apps.
+
+## Contents
+
+- [Quick start](#quick-start)
+- [Detailed setup and credentials](#detailed-setup-and-credentials)
+- [Complete diagnostic example](#complete-diagnostic-example)
+- [Common tasks](#common-tasks)
+- [Server-only operations](#server-only-operations)
+- [Configuration and errors](#configuration-and-errors)
+- [Examples and testing](#examples-and-testing)
+- [Distribution and releases](#distribution-and-releases)
+- [Reference, support, and contributing](#reference-support-and-contributing)
+- [License](#license)
 
 ## Quick start
 
@@ -73,9 +90,9 @@ consume API credits.
 
 This server SDK accepts server API keys (`sk-…`), not client tokens (`ct-…`).
 Client tokens are needed only when your backend serves a browser or mobile app;
-see [server-only APIs](#server-only-apis) for token creation.
+see [server-only operations](#server-only-operations) for token creation.
 
-## Before you begin
+## Detailed setup and credentials
 
 <details>
 <summary>Account, billing, and new-module details</summary>
@@ -99,7 +116,7 @@ and **not needed for server food search**. To mint client tokens, open
 **Enable client tokens**, then call `CreateClientToken` on your backend.
 This enablement is required for minting, not for revocation.
 
-## Install
+### Package installation
 
 In an existing Go module, install the SDK:
 
@@ -282,7 +299,7 @@ func printSearchFailure(stderr io.Writer, err error) {
 
 </details>
 
-## Common tasks and resources
+## Common tasks
 
 Reuse a client across goroutines. Treat its resource handles as read-only.
 `ForUser` creates an immutable shared-resource view whose identity overrides
@@ -361,7 +378,7 @@ Use `errors.As` with `*january.FoodPortionError` to inspect `Code`:
 `no_servings`, `serving_not_found`, `invalid_serving`, or `invalid_quantity`.
 The complete [portion example](examples/portions/main.go) runs entirely offline.
 
-## Server-only APIs
+## Server-only operations
 
 Only the root client exposes `CreateClientToken`, `RevokeClientTokens`, and
 `GetCredits`; these are not methods on the `ForUser` view.
@@ -470,7 +487,7 @@ real credits and exercises all 20 operations with cleanup. Its `.env` setup,
 safety rules, options, and reporting are documented there.
 See [contributor checks](CONTRIBUTING.md#build-and-test) for full offline verification.
 
-## Distribution
+## Distribution and releases
 
 The SDK is distributed as the Go source module `github.com/January-ai/january-server-sdk-go`.
 Versioned repository tags identify releases; Go downloads the module through its
@@ -481,6 +498,11 @@ release. You can select a specific version instead of `latest`. Commit `go.mod`
 and `go.sum` to record your dependencies and their checksums. See
 [distribution checks](CONTRIBUTING.md#distribution-and-consumers) for contributor
 installation tests.
+
+Maintainers publish a Go release by pushing a semantic version tag. The release
+workflow verifies that commit and creates a draft GitHub release for review.
+Because the repository is public, external users can resolve the documented
+module path without private GitHub credentials.
 
 ## Reference, support, and contributing
 

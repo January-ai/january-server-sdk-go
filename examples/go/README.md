@@ -12,7 +12,7 @@ scopes, and lifetimes are ignored.
 
 ## Run locally
 
-First follow the [account and API key setup](../../README.md#before-you-begin).
+First follow the [account and API key setup](../../README.md#detailed-setup-and-credentials).
 Minting additionally requires **Enable client tokens** in the
 [Client tokens dashboard](https://dashboard.january.ai/dashboard/client-tokens).
 Client-token enablement is not needed for server food search or revocation.
