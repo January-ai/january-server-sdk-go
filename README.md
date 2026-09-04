@@ -90,7 +90,7 @@ consume API credits.
 
 This server SDK accepts server API keys (`sk-…`), not client tokens (`ct-…`).
 Client tokens are needed only when your backend serves a browser or mobile app;
-see [server-only APIs](#server-only-apis) for token creation.
+see [server-only operations](#server-only-operations) for token creation.
 
 ## Detailed setup and credentials
 
