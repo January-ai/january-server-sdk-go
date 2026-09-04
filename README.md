@@ -20,6 +20,9 @@ export JANUARY_API_KEY=sk-your-server-api-key
 ### 2. Install, connect, and make the first request
 
 ```sh
+mkdir january-quickstart
+cd january-quickstart
+go mod init example.com/january-quickstart
 go get github.com/January-ai/january-server-sdk-go@latest
 ```
 
@@ -32,13 +35,18 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/January-ai/january-server-sdk-go/january"
 )
 
 func main() {
+	secretKey := strings.TrimSpace(os.Getenv("JANUARY_API_KEY"))
+	if secretKey == "" {
+		panic("JANUARY_API_KEY is required")
+	}
 	client, err := january.NewClient(january.Config{
-		SecretKey: os.Getenv("JANUARY_API_KEY"),
+		SecretKey: secretKey,
 	})
 	if err != nil {
 		panic(err)
