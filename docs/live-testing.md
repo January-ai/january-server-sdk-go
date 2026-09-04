@@ -11,7 +11,7 @@ exist**, then set `JANUARY_API_KEY` in `.env`. Never overwrite an existing `.env
 Both `.env` and `.e2e-results/` are ignored; only `.env.example` is tracked.
 
 Before running the all-20-operations command below, complete the
-[account, organization, API key, and billing prerequisites](../README.md#before-you-begin)
+[account, organization, API key, and billing prerequisites](../README.md#detailed-setup-and-credentials)
 and choose **Enable client tokens** in the
 [Client tokens dashboard](https://dashboard.january.ai/dashboard/client-tokens).
 Enablement is required for the runner's mint operation; it is **not required for
