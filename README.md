@@ -94,7 +94,9 @@ Client tokens are needed only when your backend serves a browser or mobile app;
 see [server-only operations](#server-only-operations) for token creation.
 
 For v1.2 food-log requests, this SDK sends the canonical
-`January-End-User-ID` header. Do not send the retired `x-end-user-id` name.
+`January-End-User-ID` header. The legacy `X-End-User-ID` name remains accepted
+for backwards compatibility but is deprecated; use the canonical name in new
+integrations.
 
 ## Test a client SDK locally
 
@@ -104,7 +106,7 @@ ready. Clone that repository and run `./start.sh`; it guides you through the API
 key and client-token setup and starts on port `8787`.
 
 If localhost is inconvenient, follow the relay's
-[Vercel deployment guide](https://github.com/January-ai/january-token-relay#optional-deploy-to-vercel).
+[Vercel deployment guide](https://github.com/January-ai/january-token-relay#deploy).
 Both options are development stand-ins. In production, put token minting inside
 your authenticated backend, derive the end-user ID from the verified session,
 and choose scopes server-side.
