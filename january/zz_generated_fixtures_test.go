@@ -105,6 +105,12 @@ func invokeFixture(c *Client, id string, raw []byte) (any, *Response, error) {
 			return nil, nil, err
 		}
 		return c.FoodLogs.List(context.Background(), input)
+	case "getFoodLogSummary":
+		var input GetFoodLogSummaryRequest
+		if err := json.Unmarshal(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		return c.FoodLogs.GetSummary(context.Background(), input)
 	case "getFoodLog":
 		var input GetFoodLogRequest
 		if err := json.Unmarshal(raw, &input); err != nil {

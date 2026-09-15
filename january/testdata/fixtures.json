@@ -511,15 +511,13 @@
                 "id": "789012",
                 "name": "Oatmeal",
                 "brand_name": null,
-                "nutrients": {},
-                "servings": [
-                  {
-                    "id": "45678",
-                    "quantity": 1,
-                    "unit": "cup",
-                    "selected_quantity": 1
-                  }
-                ]
+                "quantity": 1,
+                "serving": {
+                  "id": "45678",
+                  "quantity": 1,
+                  "unit": "cup"
+                },
+                "nutrients": {}
               }
             }
           ]
@@ -561,15 +559,13 @@
                 "id": "123456",
                 "name": "Banana",
                 "brand_name": null,
-                "nutrients": {},
-                "servings": [
-                  {
-                    "id": "78901",
-                    "quantity": 1,
-                    "unit": "medium",
-                    "selected_quantity": 1
-                  }
-                ]
+                "quantity": 1,
+                "serving": {
+                  "id": "78901",
+                  "quantity": 1,
+                  "unit": "medium"
+                },
+                "nutrients": {}
               }
             }
           ]
@@ -600,15 +596,13 @@
                   "id": "789012",
                   "name": "Oatmeal",
                   "brand_name": null,
-                  "nutrients": {},
-                  "servings": [
-                    {
-                      "id": "45678",
-                      "quantity": 1,
-                      "unit": "cup",
-                      "selected_quantity": 1
-                    }
-                  ]
+                  "quantity": 1,
+                  "serving": {
+                    "id": "45678",
+                    "quantity": 1,
+                    "unit": "cup"
+                  },
+                  "nutrients": {}
                 }
               }
             ]
@@ -631,15 +625,13 @@
                 "id": "789013",
                 "name": "Steel-Cut Oats",
                 "brand_name": null,
-                "nutrients": {},
-                "servings": [
-                  {
-                    "id": "45679",
-                    "quantity": 1,
-                    "unit": "cup",
-                    "selected_quantity": 2
-                  }
-                ]
+                "quantity": 2,
+                "serving": {
+                  "id": "45679",
+                  "quantity": 1,
+                  "unit": "cup"
+                },
+                "nutrients": {}
               }
             }
           ]
@@ -760,6 +752,176 @@
               "name": null
             }
           ]
+        }
+      }
+    },
+    {
+      "operationId": "getFoodLogSummary",
+      "method": "GET",
+      "path": "/v1.2/food-logs/summary",
+      "resource": "foodLogs",
+      "publicMethod": "getSummary",
+      "audience": "shared",
+      "parameterNames": {
+        "January-End-User-ID": "endUserId",
+        "x-end-user-id": "endUserId",
+        "x-end-user-timezone": "endUserTimezone"
+      },
+      "request": {
+        "parameters": {
+          "query": {
+            "start_date": "2026-09-13",
+            "end_date": "2026-09-15",
+            "timezone": "America/Chicago",
+            "group_by": "day"
+          },
+          "header": {
+            "January-End-User-ID": "oren-sdk-test"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "x-request-id": "request-getFoodLogSummary"
+        },
+        "body": {
+          "group_by": "day",
+          "week_start": null,
+          "timezone": "America/Chicago",
+          "start_date": "2026-09-13",
+          "end_date": "2026-09-15",
+          "buckets": [
+            {
+              "start_date": "2026-09-13",
+              "end_date": "2026-09-13",
+              "logs_count": 0,
+              "days_with_logs": 0,
+              "nutrients": {}
+            },
+            {
+              "start_date": "2026-09-14",
+              "end_date": "2026-09-14",
+              "logs_count": 1,
+              "days_with_logs": 1,
+              "nutrients": {
+                "calories": {
+                  "value": 1853.06,
+                  "unit": "kcal"
+                },
+                "protein": {
+                  "value": 79.8822,
+                  "unit": "g"
+                },
+                "carbohydrates": {
+                  "value": 199.5376,
+                  "unit": "g"
+                },
+                "total_fat": {
+                  "value": 83.5442,
+                  "unit": "g"
+                },
+                "fiber": {
+                  "value": 16.232,
+                  "unit": "g"
+                },
+                "sodium": {
+                  "value": 2183.4,
+                  "unit": "mg"
+                }
+              }
+            },
+            {
+              "start_date": "2026-09-15",
+              "end_date": "2026-09-15",
+              "logs_count": 2,
+              "days_with_logs": 1,
+              "nutrients": {
+                "calories": {
+                  "value": 1803.4283825,
+                  "unit": "kcal"
+                },
+                "protein": {
+                  "value": 81.034628855,
+                  "unit": "g"
+                },
+                "carbohydrates": {
+                  "value": 115.96794525,
+                  "unit": "g"
+                },
+                "total_fat": {
+                  "value": 108.680893,
+                  "unit": "g"
+                },
+                "fiber": {
+                  "value": 15.105444875,
+                  "unit": "g"
+                },
+                "sodium": {
+                  "value": 1901.925859335,
+                  "unit": "mg"
+                }
+              }
+            }
+          ],
+          "totals": {
+            "logs_count": 3,
+            "days_with_logs": 2,
+            "nutrients": {
+              "calories": {
+                "value": 3656.4883824999997,
+                "unit": "kcal"
+              },
+              "protein": {
+                "value": 160.916828855,
+                "unit": "g"
+              },
+              "carbohydrates": {
+                "value": 315.50554525,
+                "unit": "g"
+              },
+              "total_fat": {
+                "value": 192.22509300000002,
+                "unit": "g"
+              },
+              "fiber": {
+                "value": 31.337444875,
+                "unit": "g"
+              },
+              "sodium": {
+                "value": 4085.325859335,
+                "unit": "mg"
+              }
+            }
+          },
+          "average_per_logged_day": {
+            "nutrients": {
+              "calories": {
+                "value": 1828.2441912499999,
+                "unit": "kcal"
+              },
+              "protein": {
+                "value": 80.4584144275,
+                "unit": "g"
+              },
+              "carbohydrates": {
+                "value": 157.752772625,
+                "unit": "g"
+              },
+              "total_fat": {
+                "value": 96.11254650000001,
+                "unit": "g"
+              },
+              "fiber": {
+                "value": 15.6687224375,
+                "unit": "g"
+              },
+              "sodium": {
+                "value": 2042.6629296675,
+                "unit": "mg"
+              }
+            }
+          }
         }
       }
     },
@@ -1177,6 +1339,12 @@
                 "id": "123456",
                 "name": "Banana",
                 "brand_name": null,
+                "quantity": 1,
+                "serving": {
+                  "id": "78901",
+                  "quantity": 1,
+                  "unit": "medium"
+                },
                 "nutrients": {
                   "calories": {
                     "value": 105,
@@ -1186,15 +1354,7 @@
                     "value": 0,
                     "unit": "g"
                   }
-                },
-                "servings": [
-                  {
-                    "id": "78901",
-                    "quantity": 1,
-                    "unit": "medium",
-                    "selected_quantity": 1
-                  }
-                ]
+                }
               }
             }
           ]
@@ -1241,15 +1401,13 @@
                 "id": "123456",
                 "name": "Banana",
                 "brand_name": null,
-                "nutrients": {},
-                "servings": [
-                  {
-                    "id": "78901",
-                    "quantity": 1,
-                    "unit": "medium",
-                    "selected_quantity": 1
-                  }
-                ]
+                "quantity": 1,
+                "serving": {
+                  "id": "78901",
+                  "quantity": 1,
+                  "unit": "medium"
+                },
+                "nutrients": {}
               }
             }
           ]
@@ -1291,19 +1449,17 @@
                 "id": "123456",
                 "name": "Banana",
                 "brand_name": null,
+                "quantity": 1,
+                "serving": {
+                  "id": "78901",
+                  "quantity": 1,
+                  "unit": "medium"
+                },
                 "nutrients": {
                   "calories": {
                     "unit": "kcal"
                   }
-                },
-                "servings": [
-                  {
-                    "id": "78901",
-                    "quantity": 1,
-                    "unit": "medium",
-                    "selected_quantity": 1
-                  }
-                ]
+                }
               }
             }
           ]
@@ -1349,19 +1505,17 @@
                 "id": "123456",
                 "name": "Banana",
                 "brand_name": null,
+                "quantity": 1,
+                "serving": {
+                  "id": "78901",
+                  "quantity": 1,
+                  "unit": "medium"
+                },
                 "nutrients": {
                   "calories": {
                     "value": 0
                   }
-                },
-                "servings": [
-                  {
-                    "id": "78901",
-                    "quantity": 1,
-                    "unit": "medium",
-                    "selected_quantity": 1
-                  }
-                ]
+                }
               }
             }
           ]
@@ -1412,6 +1566,12 @@
                 "id": "789012",
                 "name": "Oatmeal",
                 "brand_name": null,
+                "quantity": 1,
+                "serving": {
+                  "id": "45678",
+                  "quantity": 1,
+                  "unit": "cup"
+                },
                 "nutrients": {
                   "calories": {
                     "value": 105,
@@ -1421,15 +1581,7 @@
                     "value": 0,
                     "unit": "g"
                   }
-                },
-                "servings": [
-                  {
-                    "id": "45678",
-                    "quantity": 1,
-                    "unit": "cup",
-                    "selected_quantity": 1
-                  }
-                ]
+                }
               }
             }
           ]
@@ -1476,15 +1628,13 @@
                 "id": "789012",
                 "name": "Oatmeal",
                 "brand_name": null,
-                "nutrients": {},
-                "servings": [
-                  {
-                    "id": "45678",
-                    "quantity": 1,
-                    "unit": "cup",
-                    "selected_quantity": 1
-                  }
-                ]
+                "quantity": 1,
+                "serving": {
+                  "id": "45678",
+                  "quantity": 1,
+                  "unit": "cup"
+                },
+                "nutrients": {}
               }
             }
           ]
@@ -1526,19 +1676,17 @@
                 "id": "789012",
                 "name": "Oatmeal",
                 "brand_name": null,
+                "quantity": 1,
+                "serving": {
+                  "id": "45678",
+                  "quantity": 1,
+                  "unit": "cup"
+                },
                 "nutrients": {
                   "calories": {
                     "unit": "kcal"
                   }
-                },
-                "servings": [
-                  {
-                    "id": "45678",
-                    "quantity": 1,
-                    "unit": "cup",
-                    "selected_quantity": 1
-                  }
-                ]
+                }
               }
             }
           ]
@@ -1584,19 +1732,17 @@
                 "id": "789012",
                 "name": "Oatmeal",
                 "brand_name": null,
+                "quantity": 1,
+                "serving": {
+                  "id": "45678",
+                  "quantity": 1,
+                  "unit": "cup"
+                },
                 "nutrients": {
                   "calories": {
                     "value": 0
                   }
-                },
-                "servings": [
-                  {
-                    "id": "45678",
-                    "quantity": 1,
-                    "unit": "cup",
-                    "selected_quantity": 1
-                  }
-                ]
+                }
               }
             }
           ]
@@ -1647,6 +1793,12 @@
                 "id": "789013",
                 "name": "Steel-Cut Oats",
                 "brand_name": null,
+                "quantity": 2,
+                "serving": {
+                  "id": "45679",
+                  "quantity": 1,
+                  "unit": "cup"
+                },
                 "nutrients": {
                   "calories": {
                     "value": 105,
@@ -1656,15 +1808,7 @@
                     "value": 0,
                     "unit": "g"
                   }
-                },
-                "servings": [
-                  {
-                    "id": "45679",
-                    "quantity": 1,
-                    "unit": "cup",
-                    "selected_quantity": 2
-                  }
-                ]
+                }
               }
             }
           ]
@@ -1711,15 +1855,13 @@
                 "id": "789013",
                 "name": "Steel-Cut Oats",
                 "brand_name": null,
-                "nutrients": {},
-                "servings": [
-                  {
-                    "id": "45679",
-                    "quantity": 1,
-                    "unit": "cup",
-                    "selected_quantity": 2
-                  }
-                ]
+                "quantity": 2,
+                "serving": {
+                  "id": "45679",
+                  "quantity": 1,
+                  "unit": "cup"
+                },
+                "nutrients": {}
               }
             }
           ]
@@ -1761,19 +1903,17 @@
                 "id": "789013",
                 "name": "Steel-Cut Oats",
                 "brand_name": null,
+                "quantity": 2,
+                "serving": {
+                  "id": "45679",
+                  "quantity": 1,
+                  "unit": "cup"
+                },
                 "nutrients": {
                   "calories": {
                     "unit": "kcal"
                   }
-                },
-                "servings": [
-                  {
-                    "id": "45679",
-                    "quantity": 1,
-                    "unit": "cup",
-                    "selected_quantity": 2
-                  }
-                ]
+                }
               }
             }
           ]
@@ -1819,19 +1959,17 @@
                 "id": "789013",
                 "name": "Steel-Cut Oats",
                 "brand_name": null,
+                "quantity": 2,
+                "serving": {
+                  "id": "45679",
+                  "quantity": 1,
+                  "unit": "cup"
+                },
                 "nutrients": {
                   "calories": {
                     "value": 0
                   }
-                },
-                "servings": [
-                  {
-                    "id": "45679",
-                    "quantity": 1,
-                    "unit": "cup",
-                    "selected_quantity": 2
-                  }
-                ]
+                }
               }
             }
           ]
