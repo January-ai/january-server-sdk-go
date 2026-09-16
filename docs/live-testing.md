@@ -63,7 +63,7 @@ is asserted because server caches may take 60 seconds to expire.
 Output contains only operation labels, statuses, safe codes/request IDs, and static
 blocked reasons. A safe report with durations and counts is written atomically to
 `.e2e-results/latest.json`; it contains no key, token, user ID, food text, or response
-body. Exit is zero only if all 20 operations and cleanup pass. Hard process termination
+body. Exit is zero only if all 21 operations and cleanup pass. Hard process termination
 or machine failure can prevent final cleanup; use ordinary Ctrl-C for bounded cleanup.
 
 Offline runner-only tests use a test-owned client constructor with localhost

@@ -20,7 +20,7 @@ import (
 var operationLabels = []string{
 	"credits", "foods.search", "foods.autocomplete", "foods.get", "foods.lookupBarcode", "foods.suggestAlternatives",
 	"restaurants.search", "restaurants.getMenuItems", "restaurants.searchMenuItems", "foodAnalysis.analyzePhoto", "foodAnalysis.analyzeDescription", "foodAnalysis.correct",
-	"foodLogs.create", "foodLogs.list", "foodLogs.get", "foodLogs.update", "foodLogs.delete", "glucose.predict", "createClientToken", "revokeClientTokens",
+	"foodLogs.create", "foodLogs.list", "foodLogs.getSummary", "foodLogs.get", "foodLogs.update", "foodLogs.delete", "glucose.predict", "createClientToken", "revokeClientTokens",
 }
 
 type result struct {
@@ -497,6 +497,16 @@ outer:
 			}
 		}
 		return meta, assert(value.Items != nil)
+	})
+	r.step("foodLogs.getSummary", "", func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.FoodLogs.GetSummary(ctx, january.GetFoodLogSummaryRequest{StartDate: r.day, EndDate: time.Now().UTC().Format("2006-01-02"), Timezone: "UTC"})
+		if err != nil {
+			return meta, err
+		}
+		if value == nil || len(value.Buckets) == 0 {
+			return meta, safeError("response_assertion_failed")
+		}
+		return meta, nil
 	})
 	r.step("foodLogs.get", dependency(logID != "", "no_created_log_id"), func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.FoodLogs.Get(ctx, january.GetFoodLogRequest{LogID: logID})
