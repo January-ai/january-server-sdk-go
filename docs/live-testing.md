@@ -3,14 +3,14 @@
 All commands below run from the Go SDK root. [Back to the README](../README.md).
 
 This is a real, credit-consuming integration run, not a mock and not part of default
-tests or CI. It uses the SDK's built-in production endpoint and exercises all 20
+tests or CI. It uses the SDK's built-in production endpoint and exercises all 21
 SDK operations using synthetic data. No UI is needed.
 
 From a fresh checkout, copy `.env.example` to `.env` **only if `.env` does not already
 exist**, then set `JANUARY_API_KEY` in `.env`. Never overwrite an existing `.env`.
 Both `.env` and `.e2e-results/` are ignored; only `.env.example` is tracked.
 
-Before running the all-20-operations command below, complete the
+Before running the all-21-operations command below, complete the
 [account, organization, API key, and billing prerequisites](../README.md#detailed-setup-and-credentials)
 and choose **Enable client tokens** in the
 [Client tokens dashboard](https://dashboard.january.ai/dashboard/client-tokens).

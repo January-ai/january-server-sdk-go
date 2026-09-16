@@ -18,7 +18,9 @@ func retryableStatus(status int, code string) bool {
 	switch code {
 	case "rate_limited", "internal_error", "upstream_error", "service_unavailable", "upstream_timeout":
 		return true
-	case "credit_limit_exceeded", "invalid_request", "unauthorized", "forbidden", "not_found", "not_implemented", "payload_too_large":
+	// credit_limit_exceeded and request_limit_exceeded are 429s that reopen only at the
+	// start of the next calendar month, so backing off cannot succeed.
+	case "credit_limit_exceeded", "request_limit_exceeded", "invalid_request", "unauthorized", "forbidden", "not_found", "not_implemented", "payload_too_large":
 		return false
 	}
 	return status == 429 || status == 500 || status == 502 || status == 503 || status == 504

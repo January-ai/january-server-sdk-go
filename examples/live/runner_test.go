@@ -346,7 +346,7 @@ func status(r runReport, label string) string {
 	}
 	return ""
 }
-func TestLiveWorkflowAll20Offline(t *testing.T) {
+func TestLiveWorkflowAll21Offline(t *testing.T) {
 	s := newFake(t, nil)
 	root := t.TempDir()
 	c := s.config(root)
