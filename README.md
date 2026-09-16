@@ -315,7 +315,7 @@ per-call user values; timezone applies where the contract declares it.
 | `Foods` | `Search`, `Autocomplete`, `SuggestAlternatives`, `LookupBarcode`, `Get` |
 | `Restaurants` | `Search`, `GetMenuItems`, `SearchMenuItems` |
 | `FoodAnalysis` | `AnalyzePhoto`, `AnalyzeDescription`, `Correct` |
-| `FoodLogs` | `List`, `Get`, `Create`, `Update`, `Delete` |
+| `FoodLogs` | `List`, `Get`, `GetSummary`, `Create`, `Update`, `Delete` |
 | `Glucose` | `Predict` |
 
 All network methods take `context.Context` first. JSON operations return typed
@@ -488,7 +488,7 @@ source, resolve the SDK locally for testing, and exercise one localhost
 request. These checks are included in the normal CI test command.
 
 The [live E2E demo](docs/live-testing.md) is a separate explicit opt-in that uses
-real credits and exercises all 20 operations with cleanup. Its `.env` setup,
+real credits and exercises all 21 operations with cleanup. Its `.env` setup,
 safety rules, options, and reporting are documented there.
 See [contributor checks](CONTRIBUTING.md#build-and-test) for full offline verification.
 

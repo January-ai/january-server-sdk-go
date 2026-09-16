@@ -23,7 +23,7 @@ type AlternativeFood struct {
 	BrandName *string        `json:"brand_name"`
 	Nutrients NutritionFacts `json:"nutrients"`
 	// Servings: Servings to read the nutrition against. Empty when the recommender returned none — the key itself is always present.
-	Servings []AlternativeServing `json:"servings"`
+	Servings []ServingSummary `json:"servings"`
 }
 
 func (v AlternativeFood) MarshalJSON() ([]byte, error) {
@@ -38,25 +38,19 @@ func (v AlternativeFood) MarshalJSON() ([]byte, error) {
 func (v AlternativeFood) String() string   { return "january.AlternativeFood{[REDACTED]}" }
 func (v AlternativeFood) GoString() string { return v.String() }
 
-// AlternativeServing is generated from the January contract.
-type AlternativeServing struct {
-	// ID: Null only when the producer sent a serving with no id.
-	ID *string `json:"id"`
-	// Quantity: How much of `unit` this serving is; null when the producer reported none.
-	Quantity *float64 `json:"quantity"`
-	// Unit: Null only when the producer sent a serving with no unit.
-	Unit *string `json:"unit"`
+// AnalysisReasoning is generated from the January contract.
+type AnalysisReasoning struct {
+	// Effort: `none` uses the standard analyzer; `xhigh` uses the reasoning-based analyzer.
+	Effort string `json:"effort"`
 }
 
-func (v AlternativeServing) MarshalJSON() ([]byte, error) {
+func (v AnalysisReasoning) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
-	m["id"] = v.ID
-	m["quantity"] = v.Quantity
-	m["unit"] = v.Unit
+	m["effort"] = v.Effort
 	return json.Marshal(m)
 }
-func (v AlternativeServing) String() string   { return "january.AlternativeServing{[REDACTED]}" }
-func (v AlternativeServing) GoString() string { return v.String() }
+func (v AnalysisReasoning) String() string   { return "january.AnalysisReasoning{[REDACTED]}" }
+func (v AnalysisReasoning) GoString() string { return v.String() }
 
 // AutocompleteFoodCategory accepts unknown future response enum values.
 type AutocompleteFoodCategory = string
@@ -365,10 +359,13 @@ type DetectedFood struct {
 	// Name: Null only when the producer sent a food with no name.
 	Name *string `json:"name"`
 	// BrandName: Null for generic (non-branded) foods.
-	BrandName *string        `json:"brand_name"`
+	BrandName *string `json:"brand_name"`
+	// Quantity: Number of catalog servings consumed, ready to use as food-log quantity. For 40 g from a 100 g serving this is 0.4. Null when the producer supplied no usable portion.
+	Quantity *float64 `json:"quantity"`
+	// Serving: Selected catalog serving definition; its quantity is the size of one serving, not the amount eaten.
+	Serving ServingSummary `json:"serving"`
+	// Nutrients: Nutrition for the consumed portion, already scaled by quantity.
 	Nutrients NutritionFacts `json:"nutrients"`
-	// Servings: Never empty: every detection producer guarantees at least one serving.
-	Servings []DetectedServing `json:"servings"`
 }
 
 func (v DetectedFood) MarshalJSON() ([]byte, error) {
@@ -376,35 +373,13 @@ func (v DetectedFood) MarshalJSON() ([]byte, error) {
 	m["id"] = v.ID
 	m["name"] = v.Name
 	m["brand_name"] = v.BrandName
+	m["quantity"] = v.Quantity
+	m["serving"] = v.Serving
 	m["nutrients"] = v.Nutrients
-	m["servings"] = v.Servings
 	return json.Marshal(m)
 }
 func (v DetectedFood) String() string   { return "january.DetectedFood{[REDACTED]}" }
 func (v DetectedFood) GoString() string { return v.String() }
-
-// DetectedServing is generated from the January contract.
-type DetectedServing struct {
-	// ID: Null only when the producer sent a serving with no id.
-	ID *string `json:"id"`
-	// Quantity: How much of `unit` this serving is; null when the producer reported none.
-	Quantity *float64 `json:"quantity"`
-	// Unit: Null only when the producer sent a serving with no unit.
-	Unit *string `json:"unit"`
-	// SelectedQuantity: Quantity parsed from the text ('2 cups' → 2); null on image analyses. Advisory — corrections reads the serving's own quantity.
-	SelectedQuantity *float64 `json:"selected_quantity"`
-}
-
-func (v DetectedServing) MarshalJSON() ([]byte, error) {
-	m := map[string]any{}
-	m["id"] = v.ID
-	m["quantity"] = v.Quantity
-	m["unit"] = v.Unit
-	m["selected_quantity"] = v.SelectedQuantity
-	return json.Marshal(m)
-}
-func (v DetectedServing) String() string   { return "january.DetectedServing{[REDACTED]}" }
-func (v DetectedServing) GoString() string { return v.String() }
 
 // DietPreference accepts unknown future response enum values.
 type DietPreference = string
@@ -450,7 +425,9 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 	// Code: A stable machine-readable identifier for the class of failure — build retry logic on this, never on message wording.
 	//
-	// Any request, each with the status it usually accompanies: `invalid_request` (400), `unauthorized` (401), `forbidden` (403), `not_found` (404), `payload_too_large` (413), `rate_limited` (429), `credit_limit_exceeded` (429), `internal_error` (500), `not_implemented` (501), `upstream_error` (502), `service_unavailable` (503), `upstream_timeout` (504). Those pairings are the common case, not a guarantee: a status we do not map falls back to `invalid_request` below 500 and `internal_error` at or above it, so an internal service answering 409 or 422 reaches you with that status and `code: invalid_request`. Branch on the code first and treat the status as the fallback, exactly as for a code you do not recognise.
+	// Any request, each with the status it usually accompanies: `invalid_request` (400), `unauthorized` (401), `forbidden` (403), `not_found` (404), `payload_too_large` (413), `rate_limited` (429), `request_limit_exceeded` (429), `credit_limit_exceeded` (429), `internal_error` (500), `not_implemented` (501), `upstream_error` (502), `service_unavailable` (503), `upstream_timeout` (504). Those pairings are the common case, not a guarantee: a status we do not map falls back to `invalid_request` below 500 and `internal_error` at or above it, so an internal service answering 409 or 422 reaches you with that status and `code: invalid_request`. Branch on the code first and treat the status as the fallback, exactly as for a code you do not recognise.
+	//
+	// `cancelled` (499) means the client disconnected before completion. The closed connection may prevent delivery of the error body.
 	//
 	// Client tokens add six an API key never produces: `token_expired`, `token_invalid`, `token_revoked` (401), and `client_token_not_allowed`, `scope_insufficient`, `end_user_id_mismatch` (403). Each response documents its own.
 	//
@@ -458,7 +435,7 @@ type ErrorResponse struct {
 	//
 	// `POST /v1.2/food-analysis/image` adds four 400s about the image itself: `image_unreachable` (the URL could not be fetched), `image_corrupt` (the file could not be decoded), `image_format_unsupported` and `image_invalid_base64`. Each is fixed by the caller; the same image fails the same way again.
 	//
-	// Retry only `rate_limited`, `internal_error`, `upstream_error`, `service_unavailable`, `upstream_timeout` and `client_token_revocation_incomplete`, with backoff — `not_implemented` is permanent until the feature ships, so its 5xx status is not a reason to retry it. Two more the status code alone gets wrong: `credit_limit_exceeded` is a 429 that **must never be retried** — the allowance returns next calendar month, so a client that backs off on every 429 will spin until then; and `token_expired` is refreshed, not retried — mint a new token, then retry once.
+	// Retry only `rate_limited`, `internal_error`, `upstream_error`, `service_unavailable`, `upstream_timeout` and `client_token_revocation_incomplete`, with backoff — `not_implemented` is permanent until the feature ships, so its 5xx status is not a reason to retry it. Three more the status code alone gets wrong. **Two 429s must never be retried**, because both reopen only at the start of the next calendar month: `credit_limit_exceeded` (the monthly credit allowance) and `request_limit_exceeded` (the monthly request allowance). A client that backs off on every 429 will spin until then; neither sends `Retry-After`, and the message names the reset instant — `GET /v1.2/credits` returns it as the resets_at field. `rate_limited` is the 429 that *is* worth retrying: a per-endpoint limit, or the rolling 24-hour burst guard over the monthly ceiling, so its window is at most a day. And `token_expired` is refreshed, not retried — mint a new token, then retry once.
 	//
 	// New codes may be added over time; treat an unknown code according to its HTTP status class.
 	Code string `json:"code"`
@@ -542,6 +519,99 @@ func (v FoodLogInputFood) MarshalJSON() ([]byte, error) {
 }
 func (v FoodLogInputFood) String() string   { return "january.FoodLogInputFood{[REDACTED]}" }
 func (v FoodLogInputFood) GoString() string { return v.String() }
+
+// FoodLogSummary is generated from the January contract.
+type FoodLogSummary struct {
+	// GroupBy: The bucket size used, echoing the request.
+	GroupBy string `json:"group_by"`
+	// WeekStart: The weekday week buckets begin on. Always present; `null` when `group_by=day`, where it does not apply.
+	WeekStart *string `json:"week_start"`
+	// Timezone: The IANA timezone the buckets were cut in — the canonical spelling of what was requested.
+	Timezone string `json:"timezone"`
+	// StartDate: First local calendar date of the summarized range, echoing the request.
+	StartDate string `json:"start_date"`
+	// EndDate: Last local calendar date of the summarized range, inclusive.
+	EndDate string `json:"end_date"`
+	// Buckets: The buckets tiling the range, in chronological order and covering it end to end — a day or week with no logs is returned with zero counts rather than skipped.
+	Buckets             []FoodLogSummaryBucket `json:"buckets"`
+	Totals              FoodLogSummaryTotals   `json:"totals"`
+	AveragePerLoggedDay FoodLogSummaryAverage  `json:"average_per_logged_day"`
+}
+
+func (v FoodLogSummary) MarshalJSON() ([]byte, error) {
+	m := map[string]any{}
+	m["group_by"] = v.GroupBy
+	m["week_start"] = v.WeekStart
+	m["timezone"] = v.Timezone
+	m["start_date"] = v.StartDate
+	m["end_date"] = v.EndDate
+	m["buckets"] = v.Buckets
+	m["totals"] = v.Totals
+	m["average_per_logged_day"] = v.AveragePerLoggedDay
+	return json.Marshal(m)
+}
+func (v FoodLogSummary) String() string   { return "january.FoodLogSummary{[REDACTED]}" }
+func (v FoodLogSummary) GoString() string { return v.String() }
+
+// FoodLogSummaryAverage is generated from the January contract.
+type FoodLogSummaryAverage struct {
+	// Nutrients: Totals divided by `totals.days_with_logs` — an average over days that were logged, not over days in the range. `{}` when none were.
+	Nutrients NutritionFacts `json:"nutrients"`
+}
+
+func (v FoodLogSummaryAverage) MarshalJSON() ([]byte, error) {
+	m := map[string]any{}
+	m["nutrients"] = v.Nutrients
+	return json.Marshal(m)
+}
+func (v FoodLogSummaryAverage) String() string   { return "january.FoodLogSummaryAverage{[REDACTED]}" }
+func (v FoodLogSummaryAverage) GoString() string { return v.String() }
+
+// FoodLogSummaryBucket is generated from the January contract.
+type FoodLogSummaryBucket struct {
+	// StartDate: First local calendar date this bucket covers. Clipped to the requested range, so the first week bucket may be partial.
+	StartDate string `json:"start_date"`
+	// EndDate: Last local calendar date this bucket covers, inclusive. Equal to start_date when grouping by day.
+	EndDate string `json:"end_date"`
+	// LogsCount: How many logs fall in this bucket.
+	LogsCount int64 `json:"logs_count"`
+	// DaysWithLogs: How many distinct local calendar dates in this bucket carry at least one log.
+	DaysWithLogs int64 `json:"days_with_logs"`
+	// Nutrients: Nutrients summed over this bucket. A key is absent when no value was available; `{}` means nothing could be totalled — read `logs_count` to tell an empty bucket from one whose logs were unresolvable.
+	Nutrients NutritionFacts `json:"nutrients"`
+}
+
+func (v FoodLogSummaryBucket) MarshalJSON() ([]byte, error) {
+	m := map[string]any{}
+	m["start_date"] = v.StartDate
+	m["end_date"] = v.EndDate
+	m["logs_count"] = v.LogsCount
+	m["days_with_logs"] = v.DaysWithLogs
+	m["nutrients"] = v.Nutrients
+	return json.Marshal(m)
+}
+func (v FoodLogSummaryBucket) String() string   { return "january.FoodLogSummaryBucket{[REDACTED]}" }
+func (v FoodLogSummaryBucket) GoString() string { return v.String() }
+
+// FoodLogSummaryTotals is generated from the January contract.
+type FoodLogSummaryTotals struct {
+	// LogsCount: Logs in the whole range.
+	LogsCount int64 `json:"logs_count"`
+	// DaysWithLogs: Distinct local calendar dates in the range that carry at least one log.
+	DaysWithLogs int64 `json:"days_with_logs"`
+	// Nutrients: Nutrients summed over the whole range, with the same sparseness as a bucket’s.
+	Nutrients NutritionFacts `json:"nutrients"`
+}
+
+func (v FoodLogSummaryTotals) MarshalJSON() ([]byte, error) {
+	m := map[string]any{}
+	m["logs_count"] = v.LogsCount
+	m["days_with_logs"] = v.DaysWithLogs
+	m["nutrients"] = v.Nutrients
+	return json.Marshal(m)
+}
+func (v FoodLogSummaryTotals) String() string   { return "january.FoodLogSummaryTotals{[REDACTED]}" }
+func (v FoodLogSummaryTotals) GoString() string { return v.String() }
 
 // FoodScan is generated from the January contract.
 type FoodScan struct {
@@ -672,6 +742,31 @@ func (v GetFoodLogRequest) MarshalJSON() ([]byte, error) {
 }
 func (v GetFoodLogRequest) String() string   { return "january.GetFoodLogRequest{[REDACTED]}" }
 func (v GetFoodLogRequest) GoString() string { return v.String() }
+
+// GetFoodLogSummaryRequest is generated from the January contract.
+type GetFoodLogSummaryRequest struct {
+	EndUserID Optional[PartnerUserID] `json:"January-End-User-ID"`
+	StartDate string                  `json:"start_date"`
+	EndDate   string                  `json:"end_date"`
+	Timezone  string                  `json:"timezone"`
+	GroupBy   Optional[string]        `json:"group_by"`
+	WeekStart Optional[string]        `json:"week_start"`
+}
+
+func (v GetFoodLogSummaryRequest) MarshalJSON() ([]byte, error) {
+	m := map[string]any{}
+	putOptional(m, "January-End-User-ID", v.EndUserID)
+	m["start_date"] = v.StartDate
+	m["end_date"] = v.EndDate
+	m["timezone"] = v.Timezone
+	putOptional(m, "group_by", v.GroupBy)
+	putOptional(m, "week_start", v.WeekStart)
+	return json.Marshal(m)
+}
+func (v GetFoodLogSummaryRequest) String() string {
+	return "january.GetFoodLogSummaryRequest{[REDACTED]}"
+}
+func (v GetFoodLogSummaryRequest) GoString() string { return v.String() }
 
 // GetFoodRequest is generated from the January contract.
 type GetFoodRequest struct {
@@ -1182,11 +1277,14 @@ func (v RevokeClientTokensRequest) GoString() string { return v.String() }
 type ScanFoodPhotoBody struct {
 	// Image: The food photo — the food itself or a packaged product's label — as an http(s) URL or a base64 data URI (data:image/jpeg;base64,…). Formats: JPG, PNG, WEBP, and non-animated GIF. Around 1,024 px on the shorter side is enough for reliable results (a recommendation, not a validation rule). A URL must be publicly fetchable server-side — hosts that block hotlinking or require a login cannot be read — and has no enforced size cap, though very large files slow the analysis and can time out. Base64 must be a complete data URI and fit the 5 MB request-body cap, so keep raw images under ~3.5 MB before encoding (base64 inflates by ~33%). Prefer the URL when the image is already hosted.
 	Image string `json:"image"`
+	// Reasoning: Controls analysis effort. Omit it or set `effort` to `none` to use the standard analyzer; `xhigh` uses the reasoning-based analyzer. Both modes return the same FoodAnalysisResult shape and use the same rate-limit bucket and credit cost.
+	Reasoning Optional[AnalysisReasoning] `json:"reasoning"`
 }
 
 func (v ScanFoodPhotoBody) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	m["image"] = v.Image
+	putOptional(m, "reasoning", v.Reasoning)
 	return json.Marshal(m)
 }
 func (v ScanFoodPhotoBody) String() string   { return "january.ScanFoodPhotoBody{[REDACTED]}" }
@@ -1196,11 +1294,14 @@ func (v ScanFoodPhotoBody) GoString() string { return v.String() }
 type ScanFoodPhotoRequest struct {
 	// Image: The food photo — the food itself or a packaged product's label — as an http(s) URL or a base64 data URI (data:image/jpeg;base64,…). Formats: JPG, PNG, WEBP, and non-animated GIF. Around 1,024 px on the shorter side is enough for reliable results (a recommendation, not a validation rule). A URL must be publicly fetchable server-side — hosts that block hotlinking or require a login cannot be read — and has no enforced size cap, though very large files slow the analysis and can time out. Base64 must be a complete data URI and fit the 5 MB request-body cap, so keep raw images under ~3.5 MB before encoding (base64 inflates by ~33%). Prefer the URL when the image is already hosted.
 	Image string `json:"image"`
+	// Reasoning: Controls analysis effort. Omit it or set `effort` to `none` to use the standard analyzer; `xhigh` uses the reasoning-based analyzer. Both modes return the same FoodAnalysisResult shape and use the same rate-limit bucket and credit cost.
+	Reasoning Optional[AnalysisReasoning] `json:"reasoning"`
 }
 
 func (v ScanFoodPhotoRequest) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	m["image"] = v.Image
+	putOptional(m, "reasoning", v.Reasoning)
 	return json.Marshal(m)
 }
 func (v ScanFoodPhotoRequest) String() string   { return "january.ScanFoodPhotoRequest{[REDACTED]}" }
@@ -1240,9 +1341,10 @@ func (v SearchFoodsByNaturalLanguageRequest) GoString() string { return v.String
 
 // SearchFoodsRequest is generated from the January contract.
 type SearchFoodsRequest struct {
-	Query string                 `json:"query"`
-	Type  Optional[FoodCategory] `json:"type"`
-	Limit Optional[int64]        `json:"limit"`
+	Query  string                 `json:"query"`
+	Type   Optional[FoodCategory] `json:"type"`
+	Limit  Optional[int64]        `json:"limit"`
+	Offset Optional[int64]        `json:"offset"`
 }
 
 func (v SearchFoodsRequest) MarshalJSON() ([]byte, error) {
@@ -1250,6 +1352,7 @@ func (v SearchFoodsRequest) MarshalJSON() ([]byte, error) {
 	m["query"] = v.Query
 	putOptional(m, "type", v.Type)
 	putOptional(m, "limit", v.Limit)
+	putOptional(m, "offset", v.Offset)
 	return json.Marshal(m)
 }
 func (v SearchFoodsRequest) String() string   { return "january.SearchFoodsRequest{[REDACTED]}" }
@@ -1384,6 +1487,26 @@ func (v ServingOption) MarshalJSON() ([]byte, error) {
 }
 func (v ServingOption) String() string   { return "january.ServingOption{[REDACTED]}" }
 func (v ServingOption) GoString() string { return v.String() }
+
+// ServingSummary is generated from the January contract.
+type ServingSummary struct {
+	// ID: Null only when the producer sent a serving with no id.
+	ID *string `json:"id"`
+	// Quantity: How much of `unit` this serving is; null when the producer reported none.
+	Quantity *float64 `json:"quantity"`
+	// Unit: Null only when the producer sent a serving with no unit.
+	Unit *string `json:"unit"`
+}
+
+func (v ServingSummary) MarshalJSON() ([]byte, error) {
+	m := map[string]any{}
+	m["id"] = v.ID
+	m["quantity"] = v.Quantity
+	m["unit"] = v.Unit
+	return json.Marshal(m)
+}
+func (v ServingSummary) String() string   { return "january.ServingSummary{[REDACTED]}" }
+func (v ServingSummary) GoString() string { return v.String() }
 
 // Sex accepts unknown future response enum values.
 type Sex = string
