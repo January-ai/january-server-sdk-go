@@ -315,7 +315,7 @@ per-call user values; timezone applies where the contract declares it.
 | `Foods` | `Search`, `Autocomplete`, `SuggestAlternatives`, `LookupBarcode`, `Get` |
 | `Restaurants` | `Search`, `GetMenuItems`, `SearchMenuItems` |
 | `FoodAnalysis` | `AnalyzePhoto`, `AnalyzeDescription`, `Correct` |
-| `FoodLogs` | `List`, `Get`, `Create`, `Update`, `Delete` |
+| `FoodLogs` | `List`, `Get`, `GetSummary`, `Create`, `Update`, `Delete` |
 | `Glucose` | `Predict` |
 
 All network methods take `context.Context` first. JSON operations return typed
