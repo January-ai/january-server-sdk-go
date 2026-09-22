@@ -77,7 +77,7 @@ func TestMissingKeyNoNetwork(t *testing.T) {
 		t.Fatal("missing key must fail before HTTP")
 	}
 	r := readReport(t, root)
-	if r.Status != "NOT_RUN" || r.Counts.Passed != 0 || r.Counts.Blocked != 21 {
+	if r.Status != "NOT_RUN" || r.Counts.Passed != 0 || r.Counts.Blocked != 26 {
 		t.Fatal("wrong not-run counts")
 	}
 }
@@ -97,6 +97,7 @@ type fakeService struct {
 	modes    map[string]string
 	userID   string
 	log      map[string]any
+	water    map[string]any
 	minted   bool
 	mu       sync.Mutex
 }
@@ -106,6 +107,7 @@ const mockToken = "ct-OFFLINE-token"
 const foodID = "909001"
 const servingID = "707001"
 const logID = "52fdd931-5acd-432a-a5fe-5a072d848b34"
+const waterLogID = "9c1f2a3b-4d5e-4f60-8a71-b2c3d4e5f607"
 
 func newFake(t *testing.T, modes map[string]string) *fakeService {
 	t.Helper()
@@ -183,7 +185,7 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 	if id == "revokeClientTokens" {
 		user, _ = request["end_user_id"].(string)
 	}
-	if strings.Contains(id, "FoodLog") || id == "createClientToken" || id == "revokeClientTokens" {
+	if strings.Contains(id, "FoodLog") || strings.Contains(id, "WaterLog") || strings.Contains(id, "WeightLog") || id == "createClientToken" || id == "revokeClientTokens" {
 		if !regexp.MustCompile("^sdk-e2e-go-[a-f0-9-]{36}$").MatchString(user) || len(user) > 64 {
 			s.t.Error("invalid isolated user")
 		}
@@ -194,8 +196,11 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 			s.t.Error("cross-user request")
 		}
 	}
-	if id == "listFoodLogs" && r.URL.Query().Get("timezone") != "UTC" {
+	if (id == "listFoodLogs" || id == "listWaterLogs" || id == "listWeightLogs") && r.URL.Query().Get("timezone") != "UTC" {
 		s.t.Error("missing UTC")
+	}
+	if id == "listWaterLogs" && r.URL.Query().Get("unit") != "fl_oz" {
+		s.t.Error("missing water unit")
 	}
 	if id == "predictGlucose" {
 		if request["timezone"] != "UTC" {
@@ -275,6 +280,28 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, logID) {
 			s.t.Error("deleted unknown log")
 		}
+	case "createWaterLog":
+		amount, _ := request["amount"].(map[string]any)
+		if amount["unit"] != "fl_oz" || request["consumed_at"] == nil {
+			s.t.Error("water log body unexpected")
+		}
+		body["id"] = waterLogID
+		body["amount"] = amount
+		s.water = body
+	case "listWaterLogs":
+		if s.water == nil {
+			body = map[string]any{"items": []any{}}
+		}
+	case "deleteWaterLog":
+		if !strings.HasSuffix(r.URL.Path, waterLogID) {
+			s.t.Error("deleted unknown water log")
+		}
+	case "createWeightLog":
+		weight, _ := request["weight"].(map[string]any)
+		if weight["unit"] != "kg" || request["measured_at"] == nil {
+			s.t.Error("weight log body unexpected")
+		}
+		body["weight"] = weight
 	case "createClientToken":
 		s.minted = true
 		body = map[string]any{"token": mockToken, "expires_in": 300, "expires_at": time.Now().UTC().Add(5 * time.Minute).Format(time.RFC3339Nano), "end_user_id": user, "scopes": []string{"foods:read"}}
@@ -312,6 +339,9 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 	if id == "deleteFoodLog" {
 		s.log = nil
 	}
+	if id == "deleteWaterLog" {
+		s.water = nil
+	}
 	if id == "revokeClientTokens" {
 		s.minted = false
 	}
@@ -346,7 +376,7 @@ func status(r runReport, label string) string {
 	}
 	return ""
 }
-func TestLiveWorkflowAll21Offline(t *testing.T) {
+func TestLiveWorkflowAll26Offline(t *testing.T) {
 	s := newFake(t, nil)
 	root := t.TempDir()
 	c := s.config(root)
@@ -356,7 +386,7 @@ func TestLiveWorkflowAll21Offline(t *testing.T) {
 		t.Fatal(out.String())
 	}
 	r := readReport(t, root)
-	if r.Status != "PASS" || r.Counts.Passed != 21 || r.Counts.Failed != 0 || r.Counts.Blocked != 0 || r.CleanupFailed != 0 {
+	if r.Status != "PASS" || r.Counts.Passed != 26 || r.Counts.Failed != 0 || r.Counts.Blocked != 0 || r.CleanupFailed != 0 {
 		t.Fatalf("wrong counts: %+v", r.Counts)
 	}
 	for _, f := range s.fixtures {
@@ -364,7 +394,7 @@ func TestLiveWorkflowAll21Offline(t *testing.T) {
 			t.Errorf("%s count %d", f.OperationID, s.count(f.OperationID))
 		}
 	}
-	if s.log != nil || s.minted {
+	if s.log != nil || s.water != nil || s.minted {
 		t.Fatal("leftovers")
 	}
 	data, _ := json.Marshal(r)
@@ -385,7 +415,7 @@ func TestFailureCleanupAndBlocked(t *testing.T) {
 			t.Error("dependency counted as success")
 		}
 	}
-	for _, label := range []string{"credits", "foods.autocomplete", "restaurants.search", "restaurants.getMenuItems", "restaurants.searchMenuItems", "foodLogs.list", "createClientToken", "revokeClientTokens"} {
+	for _, label := range []string{"credits", "foods.autocomplete", "restaurants.search", "restaurants.getMenuItems", "restaurants.searchMenuItems", "foodLogs.list", "waterLogs.create", "waterLogs.list", "waterLogs.delete", "weightLogs.create", "weightLogs.list", "createClientToken", "revokeClientTokens"} {
 		if status(r, label) != "PASS" {
 			t.Errorf("independent operation stopped: %s", label)
 		}
@@ -409,6 +439,20 @@ func TestAmbiguousCreateCleanup(t *testing.T) {
 	}
 	if s.log != nil || s.count("deleteFoodLog") != 1 || r.CleanupFailed != 0 {
 		t.Fatal("own ambiguous log not cleaned")
+	}
+}
+func TestAmbiguousWaterCreateCleanup(t *testing.T) {
+	s := newFake(t, map[string]string{"createWaterLog": "ambiguous"})
+	r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
+	if status(r, "waterLogs.create") != "FAIL" || status(r, "waterLogs.delete") != "BLOCKED" || status(r, "waterLogs.list") != "PASS" || s.count("createWaterLog") != 1 {
+		t.Fatal("wrong ambiguous water dependency status")
+	}
+}
+func TestWaterCleanupAfterFailedDelete(t *testing.T) {
+	s := newFake(t, map[string]string{"deleteWaterLog": "fail"})
+	r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
+	if r.Status != "FAIL" || status(r, "waterLogs.delete") != "FAIL" || s.count("deleteWaterLog") != 2 || r.CleanupFailed != 1 {
+		t.Fatalf("water cleanup missing: %+v", r.Counts)
 	}
 }
 func TestCleanupFailureFailsRun(t *testing.T) {

@@ -20,7 +20,8 @@ import (
 var operationLabels = []string{
 	"credits", "foods.search", "foods.autocomplete", "foods.get", "foods.lookupBarcode", "foods.suggestAlternatives",
 	"restaurants.search", "restaurants.getMenuItems", "restaurants.searchMenuItems", "foodAnalysis.analyzePhoto", "foodAnalysis.analyzeDescription", "foodAnalysis.correct",
-	"foodLogs.create", "foodLogs.list", "foodLogs.getSummary", "foodLogs.get", "foodLogs.update", "foodLogs.delete", "glucose.predict", "createClientToken", "revokeClientTokens",
+	"foodLogs.create", "foodLogs.list", "foodLogs.getSummary", "foodLogs.get", "foodLogs.update", "foodLogs.delete",
+	"waterLogs.create", "waterLogs.list", "waterLogs.delete", "weightLogs.create", "weightLogs.list", "glucose.predict", "createClientToken", "revokeClientTokens",
 }
 
 type result struct {
@@ -153,6 +154,7 @@ type runner struct {
 	report                        runReport
 	emit                          func(result)
 	owned                         map[string]bool
+	ownedWater                    map[string]bool
 	createUnresolved, mintAttempt bool
 }
 
@@ -269,6 +271,23 @@ func (r *runner) cleanup() {
 	if len(ids) == 0 && !r.createUnresolved {
 		r.cleanupStep("cleanup.foodLogs", func(context.Context) (*january.Response, error) { return nil, nil })
 	}
+	waterIDs := make([]string, 0, len(r.ownedWater))
+	for id := range r.ownedWater {
+		waterIDs = append(waterIDs, id)
+	}
+	sort.Strings(waterIDs)
+	for _, id := range waterIDs {
+		r.cleanupStep("cleanup.waterLogs.delete", func(ctx context.Context) (*january.Response, error) {
+			meta, err := r.user.WaterLogs.Delete(ctx, january.DeleteWaterLogRequest{LogID: id})
+			if err != nil {
+				return meta, err
+			}
+			if err = assert(meta != nil && meta.StatusCode == http.StatusNoContent); err == nil {
+				delete(r.ownedWater, id)
+			}
+			return meta, err
+		})
+	}
 	// The canonical revoke operation is also the final token cleanup: ONE call total, never a loop.
 	previous := r.ctx
 	ctx, cancel := context.WithTimeout(context.Background(), r.cfg.timeout)
@@ -296,7 +315,7 @@ func (r *runner) cleanup() {
 }
 
 func runWorkflow(ctx context.Context, c config, emit func(result), newClient func(january.Config) (*january.Client, error)) (report runReport) {
-	r := runner{ctx: ctx, cfg: c, report: newReport(), emit: emit, owned: map[string]bool{}, started: time.Now().UTC()}
+	r := runner{ctx: ctx, cfg: c, report: newReport(), emit: emit, owned: map[string]bool{}, ownedWater: map[string]bool{}, started: time.Now().UTC()}
 	id, err := freshUserID()
 	if err == nil {
 		r.client, err = newClient(january.Config{SecretKey: c.key, Timeout: c.timeout, MaxRetries: january.Value(0)})
@@ -444,7 +463,7 @@ func runWorkflow(ctx context.Context, c config, emit func(result), newClient fun
 		return meta, assert(value != nil && len(value.Detections) > 0)
 	})
 	r.step("foodAnalysis.correct", dependency(scan != nil, "no_returned_detections"), func(ctx context.Context) (*january.Response, error) {
-		value, meta, err := r.user.FoodAnalysis.Correct(ctx, january.CorrectPhotoScanRequest{Analysis: *scan, Instruction: "The portion is one serving."})
+		value, meta, err := r.user.FoodAnalysis.Correct(ctx, january.CorrectPhotoScanRequest{Analysis: scan.Correction(), Instruction: "The portion is one serving."})
 		if err != nil {
 			return meta, err
 		}
@@ -534,6 +553,55 @@ outer:
 			delete(r.owned, logID)
 		}
 		return meta, err
+	})
+	var waterLogID string
+	r.step("waterLogs.create", "", func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.WaterLogs.Create(ctx, january.CreateWaterLogRequest{Amount: january.WaterAmount{Value: 8, Unit: january.VolumeUnitFlOz}, ConsumedAt: january.Value(r.started.Format(time.RFC3339))})
+		if value != nil && value.ID != "" {
+			waterLogID = value.ID
+			r.ownedWater[waterLogID] = true
+		}
+		if err != nil {
+			return meta, err
+		}
+		return meta, assert(value != nil && value.ID != "" && value.Amount.Value == 8 && value.Amount.Unit == january.VolumeUnitFlOz)
+	})
+	r.step("waterLogs.list", "", func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.WaterLogs.List(ctx, january.ListWaterLogsRequest{StartDate: r.day, EndDate: time.Now().UTC().Format("2006-01-02"), Timezone: "UTC", Unit: january.VolumeUnitFlOz})
+		if err != nil {
+			return meta, err
+		}
+		if value == nil || value.Items == nil {
+			return meta, safeError("response_assertion_failed")
+		}
+		if waterLogID != "" && len(value.Items) == 0 {
+			return meta, safeError("created_log_not_listed")
+		}
+		return meta, nil
+	})
+	r.step("waterLogs.delete", dependency(waterLogID != "", "no_created_log_id"), func(ctx context.Context) (*january.Response, error) {
+		meta, err := r.user.WaterLogs.Delete(ctx, january.DeleteWaterLogRequest{LogID: waterLogID})
+		if err != nil {
+			return meta, err
+		}
+		if err = assert(meta != nil && meta.StatusCode == http.StatusNoContent); err == nil {
+			delete(r.ownedWater, waterLogID)
+		}
+		return meta, err
+	})
+	r.step("weightLogs.create", "", func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.WeightLogs.Create(ctx, january.CreateWeightLogRequest{Weight: january.Weight{Value: 70, Unit: january.WeightUnitKg}, MeasuredAt: january.Value(r.started.Format(time.RFC3339))})
+		if err != nil {
+			return meta, err
+		}
+		return meta, assert(value != nil && value.Weight.Value == 70 && value.Weight.Unit == january.WeightUnitKg && value.MeasuredAt != "")
+	})
+	r.step("weightLogs.list", "", func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.WeightLogs.List(ctx, january.ListWeightLogsRequest{StartDate: r.day, EndDate: time.Now().UTC().Format("2006-01-02"), Timezone: "UTC"})
+		if err != nil {
+			return meta, err
+		}
+		return meta, assert(value != nil && value.Items != nil && len(value.Items) > 0)
 	})
 	r.step("glucose.predict", dependency(len(selection) > 0, "no_live_food_and_serving"), func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.Glucose.Predict(ctx, january.PredictGlucoseRequest{

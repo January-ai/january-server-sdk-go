@@ -45,7 +45,9 @@ if errors.As(err, &apiError) {
 ```
 
 Also available: `ErrBadRequest`, `ErrNotFound`, `ErrPayloadTooLarge`, and
-`ErrInternalServer`. `errors.As` still exposes `APIError` with redacted `Body`,
+`ErrInternalServer`. A water log that would take the day past 24 L answers
+`ErrBadRequest` with code `daily_water_limit_exceeded`, and a list range past the
+documented lookback answers it with `date_range_too_large`; neither is retried. `errors.As` still exposes `APIError` with redacted `Body`,
 bounded `Message`, and `RetryNote`. Only rate-limit and credit-limit codes override
 HTTP status classification, matching Python. Never log arbitrary response data.
 
@@ -56,7 +58,7 @@ or an HTTP date; excessive waits return the error with `RetryNote` immediately.
 
 ## Tests and release
 
-`go test -race ./...` covers all 21 generated operations, portion calculations,
+`go test -race ./...` covers all 26 generated operations, portion calculations,
 errors/retries, photos, quickstart, and a real installed module consumer against
 loopback HTTP. `go run ./examples/live` is the separate, billable production check;
 it reads the key from `.env` and disables retries. Offline tests are not production

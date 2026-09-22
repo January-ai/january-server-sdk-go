@@ -3,14 +3,14 @@
 All commands below run from the Go SDK root. [Back to the README](../README.md).
 
 This is a real, credit-consuming integration run, not a mock and not part of default
-tests or CI. It uses the SDK's built-in production endpoint and exercises all 21
+tests or CI. It uses the SDK's built-in production endpoint and exercises all 26
 SDK operations using synthetic data. No UI is needed.
 
 From a fresh checkout, copy `.env.example` to `.env` **only if `.env` does not already
 exist**, then set `JANUARY_API_KEY` in `.env`. Never overwrite an existing `.env`.
 Both `.env` and `.e2e-results/` are ignored; only `.env.example` is tracked.
 
-Before running the all-21-operations command below, complete the
+Before running the all-26-operations command below, complete the
 [account, organization, API key, and billing prerequisites](../README.md#detailed-setup-and-credentials)
 and choose **Enable client tokens** in the
 [Client tokens dashboard](https://dashboard.january.ai/dashboard/client-tokens).
@@ -43,7 +43,9 @@ NOT_RUN/configuration result before any network request.
 The image is read as bytes and sent as a base64 PNG/JPEG data URI. The description
 demo analyzes `one banana`. Correction reuses returned detections and meal name.
 Food logs and glucose prediction use actual returned food/serving IDs, never stale
-fixture IDs; the glucose profile is synthetic.
+fixture IDs; the glucose profile is synthetic. The water log (8 fl oz) is listed
+and then deleted; the weight log (70 kg) is listed and stays on the fresh user,
+because the API has no weight-log deletion.
 
 Each run creates a fresh `sdk-e2e-go-UUID` user with timezone UTC. There is no option
 to select an existing user. Independent operations continue after failures;
@@ -51,7 +53,7 @@ dependent operations are BLOCKED with a static reason, never counted as passes.
 The runner validates the minted token's user, requested scope, token shape, and
 expiry. It does not make the optional client-token usability request.
 
-Final cleanup deletes only known logs created by this run. If creation was ambiguous,
+Final cleanup deletes only known food and water logs created by this run. If creation was ambiguous,
 it checks this fresh user's logs for the run's unique marker. Unresolved creation or
 cleanup failures remain failures. Token revocation is the canonical final operation:
 one `RevokeClientTokens` call total, even after an ambiguous mint timeout and even if
@@ -63,7 +65,7 @@ is asserted because server caches may take 60 seconds to expire.
 Output contains only operation labels, statuses, safe codes/request IDs, and static
 blocked reasons. A safe report with durations and counts is written atomically to
 `.e2e-results/latest.json`; it contains no key, token, user ID, food text, or response
-body. Exit is zero only if all 21 operations and cleanup pass. Hard process termination
+body. Exit is zero only if all 26 operations and cleanup pass. Hard process termination
 or machine failure can prevent final cleanup; use ordinary Ctrl-C for bounded cleanup.
 
 Offline runner-only tests use a test-owned client constructor with localhost

@@ -64,10 +64,10 @@ func equalJSON(t *testing.T, a, b []byte) {
 		t.Errorf("JSON mismatch:\ngot %s\nwant %s", a, b)
 	}
 }
-func TestAll21ContractFixtures(t *testing.T) {
+func TestAll26ContractFixtures(t *testing.T) {
 	bundle := fixtures(t)
-	if len(bundle.Operations) != 21 {
-		t.Fatalf("expected 21 fixtures, got %d", len(bundle.Operations))
+	if len(bundle.Operations) != 26 {
+		t.Fatalf("expected 26 fixtures, got %d", len(bundle.Operations))
 	}
 	for _, fixture := range bundle.Operations {
 		t.Run(fixture.OperationID, func(t *testing.T) {

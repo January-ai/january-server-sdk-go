@@ -94,7 +94,7 @@ func TestRequestValidation(t *testing.T) {
 	for _, input := range []CreateClientTokenInput{
 		{EndUserID: "user", Scopes: []ClientScope{}},
 		{EndUserID: "user", Scopes: []ClientScope{"unknown"}},
-		{EndUserID: "user", Scopes: []ClientScope{ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead}},
+		{EndUserID: "user", Scopes: []ClientScope{ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead, ScopeFoodsRead}},
 		{EndUserID: "user", TTLSeconds: &zero},
 		{EndUserID: "user", TTLSeconds: &high},
 		{EndUserID: strings.Repeat("😀", 33)},

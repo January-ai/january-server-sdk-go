@@ -4,8 +4,8 @@
 [![Go 1.26+](https://img.shields.io/badge/go-1.26%2B-00ADD8.svg)](https://github.com/January-ai/january-server-sdk-go/blob/main/go.mod)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/January-ai/january-server-sdk-go/blob/main/LICENSE)
 
-Typed Go access to January food search, analysis, food logs, and glucose prediction,
-plus server-only token and credit operations. Requires Go 1.26 or newer.
+Typed Go access to January food search, analysis, food, water and weight logs, and
+glucose prediction, plus server-only token and credit operations. Requires Go 1.26 or newer.
 
 Keep secret API keys on trusted servers, never in browser or mobile apps.
 
@@ -92,7 +92,7 @@ This server SDK accepts server API keys (`sk-…`), not client tokens (`ct-…`)
 Client tokens are needed only when your backend serves a browser or mobile app;
 see [server-only operations](#server-only-operations) for token creation.
 
-For v1.2 food-log requests, this SDK sends the canonical
+For v1.2 food, water and weight-log requests, this SDK sends the canonical
 `January-End-User-ID` header. The legacy `X-End-User-ID` name remains accepted
 for backwards compatibility but is deprecated; use the canonical name in new
 integrations.
@@ -314,8 +314,10 @@ per-call user values; timezone applies where the contract declares it.
 | --- | --- |
 | `Foods` | `Search`, `Autocomplete`, `SuggestAlternatives`, `LookupBarcode`, `Get` |
 | `Restaurants` | `Search`, `GetMenuItems`, `SearchMenuItems` |
-| `FoodAnalysis` | `AnalyzePhoto`, `AnalyzeDescription`, `Correct` |
+| `FoodAnalysis` | `AnalyzePhoto`, `AnalyzeDescription`, `Correct`, `CorrectScan` |
 | `FoodLogs` | `List`, `Get`, `GetSummary`, `Create`, `Update`, `Delete` |
+| `WaterLogs` | `Create`, `List`, `Delete` |
+| `WeightLogs` | `Create`, `List` |
 | `Glucose` | `Predict` |
 
 All network methods take `context.Context` first. JSON operations return typed
@@ -332,6 +334,35 @@ analysis, _, err := user.FoodAnalysis.AnalyzeDescription(ctx,
     january.SearchFoodsByNaturalLanguageRequest{Query: "two eggs"})
 foods, _, err := user.Foods.LookupBarcode(ctx,
     january.LookupFoodByBarcodeRequest{Barcode: "049000006346"})
+```
+
+To correct a scan, send the returned `FoodScan` back with an instruction.
+`CorrectScan` forwards every returned field; `analysis.Correction()` builds the
+same request body for `Correct`:
+
+```go
+corrected, _, err := user.FoodAnalysis.CorrectScan(ctx, *analysis, "make it three eggs")
+```
+
+Water and weight logs take the same end-user context as food logs. Water lists
+one total per local day in the unit you ask for; weight lists the latest
+measurement per local day. A water log can be deleted by its returned `ID`;
+an update to a food log must set at least one field:
+
+```go
+water, _, err := user.WaterLogs.Create(ctx, january.CreateWaterLogRequest{
+    Amount: january.WaterAmount{Value: 8, Unit: january.VolumeUnitFlOz},
+})
+totals, _, err := user.WaterLogs.List(ctx, january.ListWaterLogsRequest{
+    StartDate: "2026-09-01", EndDate: "2026-09-10", Timezone: "America/Los_Angeles", Unit: january.VolumeUnitFlOz,
+})
+_, err = user.WaterLogs.Delete(ctx, january.DeleteWaterLogRequest{LogID: water.ID})
+weight, _, err := user.WeightLogs.Create(ctx, january.CreateWeightLogRequest{
+    Weight: january.Weight{Value: 70, Unit: january.WeightUnitKg},
+})
+weights, _, err := user.WeightLogs.List(ctx, january.ListWeightLogsRequest{
+    StartDate: "2026-09-01", EndDate: "2026-09-10", Timezone: "America/Los_Angeles",
+})
 ```
 
 ### FoodPortion: local serving calculations
@@ -435,7 +466,7 @@ existing environment values, then passes `JANUARY_API_KEY` explicitly to the SDK
   are ignored; unknown response enum values are accepted. Dates remain wire-format strings.
 - Default timeout is 30 seconds (120 for photo/description analysis and correction) for the entire call; configure `Config.Timeout` and pass a shorter
   context deadline when needed. Cancellation is preserved through `errors.Is`.
-- Two bounded retries by default, using stable API error codes and `Retry-After` (up to 60 seconds per wait and total server-requested waiting). Set `MaxRetries: january.Value(0)` to disable. Credit exhaustion and permanent errors are never retried. Token creation and food-log creation are not replayed after ambiguous failures; revocation always makes one request. Retried analysis can consume additional credits. No automatic pagination or revoke-all loops. See [photos, errors and retries](docs/images-and-errors.md).
+- Two bounded retries by default, using stable API error codes and `Retry-After` (up to 60 seconds per wait and total server-requested waiting). Set `MaxRetries: january.Value(0)` to disable. Credit exhaustion and permanent errors are never retried. Token creation and food, water and weight-log creation are not replayed after ambiguous failures; revocation always makes one request. Retried analysis can consume additional credits. No automatic pagination or revoke-all loops. See [photos, errors and retries](docs/images-and-errors.md).
 - Production requests use the SDK's built-in HTTPS endpoint. Redirects are not followed.
 - Per-call `Response` includes status, cloned headers, request ID, Retry-After, and revoked count.
 - Inspect `*january.APIError` with `errors.As` for status, code, message, docs URL, and request ID.
@@ -488,7 +519,7 @@ source, resolve the SDK locally for testing, and exercise one localhost
 request. These checks are included in the normal CI test command.
 
 The [live E2E demo](docs/live-testing.md) is a separate explicit opt-in that uses
-real credits and exercises all 21 operations with cleanup. Its `.env` setup,
+real credits and exercises all 26 operations with cleanup. Its `.env` setup,
 safety rules, options, and reporting are documented there.
 See [contributor checks](CONTRIBUTING.md#build-and-test) for full offline verification.
 

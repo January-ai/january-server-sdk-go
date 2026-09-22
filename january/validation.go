@@ -13,12 +13,13 @@ func validateCreateInput(input CreateClientTokenInput) error {
 	if len(utf16.Encode([]rune(strings.TrimSpace(input.EndUserID)))) > 64 {
 		return fmt.Errorf("%w: EndUserID must be at most 64 UTF-16 code units", ErrInvalidInput)
 	}
-	if len(input.Scopes) == 0 || len(input.Scopes) > 6 {
-		return fmt.Errorf("%w: Scopes must contain 1–6 client-grantable scopes", ErrInvalidInput)
+	if len(input.Scopes) == 0 || len(input.Scopes) > 10 {
+		return fmt.Errorf("%w: Scopes must contain 1–10 client-grantable scopes", ErrInvalidInput)
 	}
 	for _, scope := range input.Scopes {
 		switch scope {
-		case ScopeFoodsRead, ScopeFoodAnalysisWrite, ScopeFoodLogsRead, ScopeFoodLogsWrite, ScopeGlucoseRead, ScopeRestaurantsRead:
+		case ScopeFoodsRead, ScopeFoodAnalysisWrite, ScopeFoodLogsRead, ScopeFoodLogsWrite, ScopeGlucoseRead, ScopeRestaurantsRead,
+			ScopeWaterLogsRead, ScopeWaterLogsWrite, ScopeWeightLogsRead, ScopeWeightLogsWrite:
 		default:
 			return fmt.Errorf("%w: unsupported client scope %q", ErrInvalidInput, scope)
 		}
