@@ -344,10 +344,12 @@ same request body for `Correct`:
 corrected, _, err := user.FoodAnalysis.CorrectScan(ctx, *analysis, "make it three eggs")
 ```
 
-Water and weight logs take the same end-user context as food logs. Water lists
-one total per local day in the unit you ask for; weight lists the latest
-measurement per local day. A water log can be deleted by its returned `ID`;
-an update to a food log must set at least one field:
+Water and weight logs take the same end-user context as food logs. Water
+amounts are in `VolumeUnitFlOz` (1–811.5), `VolumeUnitCup` (0.125–101.4) or
+`VolumeUnitMl` (30–24000). Water lists one total per local day in the unit you
+ask for; weight lists the latest measurement per local day. A water log can be
+deleted by its returned `ID`; an update to a food log must set at least one
+field:
 
 ```go
 water, _, err := user.WaterLogs.Create(ctx, january.CreateWaterLogRequest{

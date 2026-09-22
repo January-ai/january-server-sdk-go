@@ -143,6 +143,37 @@ func TestWaterLimitAndDateRangeErrorsAreNotRetried(t *testing.T) {
 	}
 }
 
+func TestWaterLogsAcceptCups(t *testing.T) {
+	var bodies []string
+	var units []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodPost {
+			body, _ := io.ReadAll(r.Body)
+			bodies = append(bodies, string(body))
+			w.WriteHeader(201)
+			_, _ = io.WriteString(w, `{"id":"78129823-8ba2-4183-b13b-71f0e963c606","amount":{"value":0.125,"unit":"cup"},"consumed_at":"2026-09-10T14:30:00.000Z"}`)
+			return
+		}
+		units = append(units, r.URL.Query().Get("unit"))
+		_, _ = io.WriteString(w, `{"items":[{"date":"2026-09-10","total":{"value":8.5,"unit":"cup"}}]}`)
+	}))
+	defer server.Close()
+	c, _ := NewClient(Config{SecretKey: "sk-test", BaseURL: server.URL})
+	user, err := c.ForUser("user-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	log, _, err := user.WaterLogs.Create(context.Background(), CreateWaterLogRequest{Amount: WaterAmount{Value: 0.125, Unit: VolumeUnitCup}})
+	if err != nil || log.Amount.Unit != VolumeUnitCup || len(bodies) != 1 || !strings.Contains(bodies[0], `"unit":"cup"`) {
+		t.Fatalf("cup create: %v %+v %v", err, log, bodies)
+	}
+	totals, _, err := user.WaterLogs.List(context.Background(), ListWaterLogsRequest{StartDate: "2026-09-10", EndDate: "2026-09-10", Timezone: "UTC", Unit: VolumeUnitCup})
+	if err != nil || len(units) != 1 || units[0] != "cup" || totals.Items[0].Total.Unit != VolumeUnitCup {
+		t.Fatalf("cup list: %v %v %+v", err, units, totals)
+	}
+}
+
 func TestNewClientScopesAreAccepted(t *testing.T) {
 	scopes := []string{ScopeWaterLogsRead, ScopeWaterLogsWrite, ScopeWeightLogsRead, ScopeWeightLogsWrite}
 	if err := validateCreateInput(CreateClientTokenInput{EndUserID: "user", Scopes: scopes}); err != nil {
