@@ -365,3 +365,31 @@ func TestHeightRangeDependsOnUnit(t *testing.T) {
 		t.Fatalf("height range not named: %v", err)
 	}
 }
+
+// Food and serving IDs are 1–10 digits without a leading zero; anything else is
+// rejected before a request is sent.
+func TestFoodAndServingIDPatterns(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write(fixtureFor(t, "createFoodLog").Response.Body)
+	}))
+	defer server.Close()
+	c, _ := NewClient(Config{SecretKey: "sk-test", BaseURL: server.URL, MaxRetries: Value(0)})
+	create := func(foodID, servingID string) error {
+		_, _, err := c.FoodLogs.Create(context.Background(), CreateFoodLogRequest{Foods: []FoodLogInputFood{{FoodID: foodID, ServingID: servingID, Quantity: 1}}})
+		return err
+	}
+	for _, ids := range [][2]string{{"0123", "67943292"}, {"84222716", "012"}, {"12345678901", "67943292"}, {"", "67943292"}, {"84222716", "1a"}} {
+		if err := create(ids[0], ids[1]); !errors.Is(err, ErrInvalidInput) || calls.Load() != 0 {
+			t.Fatalf("%v accepted or sent: %v", ids, err)
+		}
+	}
+	if err := create("1234567890", "1"); err != nil || calls.Load() != 1 {
+		t.Fatalf("valid ids refused: %v", err)
+	}
+	if _, _, err := c.Foods.Get(context.Background(), GetFoodRequest{FoodID: "0133892962"}); !errors.Is(err, ErrInvalidInput) || calls.Load() != 1 {
+		t.Fatalf("leading-zero food id accepted: %v", err)
+	}
+}

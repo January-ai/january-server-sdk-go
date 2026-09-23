@@ -16,8 +16,8 @@ func portionTestFood() FoodSearchItem {
 		Nutrients:     NutritionFacts{Calories: Value(NutrientAmount{Value: 100, Unit: "cal"}), Protein: Value(NutrientAmount{Value: 10, Unit: "g"})},
 		GlycemicIndex: portionPointer(50.0), GlycemicLoad: portionPointer(8.0),
 		Servings: []ServingOption{
-			{ID: portionPointer("1"), Quantity: portionPointer(1.0), Unit: portionPointer("slice"), ScalingFactor: portionPointer(1.0), WeightGrams: &primaryWeight, IsPrimary: portionPointer(true)},
-			{ID: portionPointer("2"), Quantity: portionPointer(2.0), Unit: portionPointer("pieces"), ScalingFactor: portionPointer(3.0), WeightGrams: &alternateWeight},
+			{ID: "1", Quantity: portionPointer(1.0), Unit: portionPointer("slice"), ScalingFactor: portionPointer(1.0), WeightGrams: &primaryWeight, IsPrimary: portionPointer(true)},
+			{ID: "2", Quantity: portionPointer(2.0), Unit: portionPointer("pieces"), ScalingFactor: portionPointer(3.0), WeightGrams: &alternateWeight},
 		},
 	}
 }
@@ -54,7 +54,7 @@ func TestFoodPortionClientPrimary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.FoodID != "42" || p.Serving.ID == nil || *p.Serving.ID != "1" || p.Quantity != 1 {
+	if p.FoodID != "42" || p.Serving.ID != "1" || p.Quantity != 1 {
 		t.Fatal("wrong default serving")
 	}
 	requirePortionAmount(t, p.Nutrition.Calories, 100, "cal")
@@ -91,7 +91,7 @@ func TestFoodPortionIOSReference(t *testing.T) {
 	food := FoodSearchItem{ID: "70381819", Name: portionPointer("banana"), Nutrients: NutritionFacts{
 		Calories: Value(NutrientAmount{Value: 105.02, Unit: "cal"}), Protein: Value(NutrientAmount{Value: 1.2862, Unit: "g"}),
 		Carbohydrates: Value(NutrientAmount{Value: 26.9512, Unit: "g"}), Potassium: Value(NutrientAmount{Value: 422, Unit: "mg"}),
-	}, GlycemicIndex: portionPointer(51.0), GlycemicLoad: portionPointer(12.0), Servings: []ServingOption{{ID: portionPointer("2"), Quantity: portionPointer(100.0), Unit: portionPointer("g"), ScalingFactor: portionPointer(0.8474576271), WeightGrams: &weight}}}
+	}, GlycemicIndex: portionPointer(51.0), GlycemicLoad: portionPointer(12.0), Servings: []ServingOption{{ID: "2", Quantity: portionPointer(100.0), Unit: portionPointer("g"), ScalingFactor: portionPointer(0.8474576271), WeightGrams: &weight}}}
 	p := requirePortion(t, food, FoodPortionOptions{ServingID: Value(ServingID("2")), Quantity: Value(200.0)})
 	requirePortionAmount(t, p.Nutrition.Calories, 178, "cal")
 	requirePortionAmount(t, p.Nutrition.Protein, 2.18, "g")
@@ -107,9 +107,9 @@ func TestFoodPortionDefaultFallback(t *testing.T) {
 		food := portionTestFood()
 		food.Servings[0].IsPrimary = portionPointer(false)
 		food.Servings[1].IsPrimary = portionPointer(true)
-		food.Servings = append(food.Servings, ServingOption{ID: portionPointer("3"), Quantity: portionPointer(1.0), ScalingFactor: portionPointer(1.0), IsPrimary: portionPointer(true)})
+		food.Servings = append(food.Servings, ServingOption{ID: "3", Quantity: portionPointer(1.0), ScalingFactor: portionPointer(1.0), IsPrimary: portionPointer(true)})
 		p := requirePortion(t, food, FoodPortionOptions{})
-		if p.Serving.ID == nil || *p.Serving.ID != "2" || p.Quantity != 2 {
+		if p.Serving.ID != "2" || p.Quantity != 2 {
 			t.Fatal("did not select first primary/default quantity")
 		}
 		requirePortionAmount(t, p.Nutrition.Calories, 300, "cal")
@@ -118,13 +118,13 @@ func TestFoodPortionDefaultFallback(t *testing.T) {
 		food := portionTestFood()
 		food.Servings[0].IsPrimary = portionPointer(false)
 		p := requirePortion(t, food, FoodPortionOptions{})
-		if p.Serving.ID == nil || *p.Serving.ID != "1" {
+		if p.Serving.ID != "1" {
 			t.Fatal("did not fall back to first serving")
 		}
 	})
 	t.Run("first exact ID match", func(t *testing.T) {
 		food := portionTestFood()
-		food.Servings = append(food.Servings, ServingOption{ID: portionPointer("2"), Quantity: portionPointer(10.0), ScalingFactor: portionPointer(1.0)})
+		food.Servings = append(food.Servings, ServingOption{ID: "2", Quantity: portionPointer(10.0), ScalingFactor: portionPointer(1.0)})
 		p := requirePortion(t, food, FoodPortionOptions{ServingID: Value(ServingID("2"))})
 		if p.Quantity != 2 {
 			t.Fatal("did not select first exact match")

@@ -524,8 +524,8 @@ outer:
 	for _, food := range candidates {
 		if food.ID != "" {
 			for _, serving := range food.Servings {
-				if serving.ID != nil && *serving.ID != "" {
-					selection = []january.FoodLogInputFood{{FoodID: food.ID, ServingID: *serving.ID, Quantity: 1}}
+				if serving.ID != "" {
+					selection = []january.FoodLogInputFood{{FoodID: food.ID, ServingID: serving.ID, Quantity: 1}}
 					break outer
 				}
 			}
@@ -543,7 +543,7 @@ outer:
 		if err != nil {
 			return meta, err
 		}
-		return meta, assert(value != nil && value.ID != nil && *value.ID != "" && len(value.Foods) > 0 && value.Foods[0].FoodID != nil && *value.Foods[0].FoodID == selection[0].FoodID)
+		return meta, assert(value != nil && value.ID != nil && *value.ID != "" && len(value.Foods) > 0 && value.Foods[0].FoodID == selection[0].FoodID)
 	})
 	r.step("foodLogs.list", "", func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.FoodLogs.List(ctx, january.ListFoodLogsRequest{StartDate: r.day, EndDate: time.Now().UTC().Format("2006-01-02"), Timezone: "UTC"})

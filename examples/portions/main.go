@@ -21,7 +21,7 @@ func main() {
 			Protein:  january.Value(january.NutrientAmount{Value: 0, Unit: "g"}),
 		},
 		GlycemicIndex: &gi, GlycemicLoad: &gl,
-		Servings: []january.ServingOption{{ID: &id, Quantity: &quantity, Unit: &unit, ScalingFactor: &scaling, WeightGrams: &weight, IsPrimary: &primary}},
+		Servings: []january.ServingOption{{ID: id, Quantity: &quantity, Unit: &unit, ScalingFactor: &scaling, WeightGrams: &weight, IsPrimary: &primary}},
 	}
 	portion, err := january.NewFoodPortion(food, january.FoodPortionOptions{Quantity: january.Value(4.0)})
 	if err != nil {
