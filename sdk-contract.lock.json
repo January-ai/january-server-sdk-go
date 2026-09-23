@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "language": "go",
-  "contractSha256": "fe0816f2ba91d2dd56d9b02a5cef29ea9af69898b5511bda0a8510ead690af75",
-  "generatorSha256": "8057538bc777fc2c7020ce5e6590612db58091c8166cc523024f4ca953935b93",
+  "contractSha256": "3a872b991eb3b765cab8cbbc1b1b8840c38d72341204dbbe01e10bf6df544542",
+  "generatorSha256": "60034821d45534c216354ab9f29083f868777bf73915efe9fac1ce0cce221b10",
   "operationCount": 26,
-  "fixturesSha256": "e4845569e9e8a74972ff7bd32455a5715918b146bd00c3e22bb043f1fbe1a75d"
+  "fixturesSha256": "69ad1deb42f9388501140ca348a9312a114dd46a834913fd22a81a0a792f5db8"
 }

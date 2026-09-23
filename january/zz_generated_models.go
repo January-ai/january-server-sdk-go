@@ -356,14 +356,14 @@ func (v CreateClientTokenRequest) GoString() string { return v.String() }
 type CreateFoodLogBody struct {
 	Foods []FoodLogInputFood `json:"foods"`
 	// EatenAt: When the meal was eaten — any ISO-8601 offset; stored and returned in UTC with milliseconds. Omitted = now.
-	EatenAt Optional[string] `json:"eaten_at"`
+	EatenAt Optional[string] `json:"created_at"`
 	Name    Optional[string] `json:"name"`
 }
 
 func (v CreateFoodLogBody) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	m["foods"] = v.Foods
-	putOptional(m, "eaten_at", v.EatenAt)
+	putOptional(m, "created_at", v.EatenAt)
 	putOptional(m, "name", v.Name)
 	return json.Marshal(m)
 }
@@ -375,7 +375,7 @@ type CreateFoodLogRequest struct {
 	EndUserID Optional[PartnerUserID] `json:"January-End-User-ID"`
 	Foods     []FoodLogInputFood      `json:"foods"`
 	// EatenAt: When the meal was eaten — any ISO-8601 offset; stored and returned in UTC with milliseconds. Omitted = now.
-	EatenAt Optional[string] `json:"eaten_at"`
+	EatenAt Optional[string] `json:"created_at"`
 	Name    Optional[string] `json:"name"`
 }
 
@@ -383,7 +383,7 @@ func (v CreateFoodLogRequest) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	putOptional(m, "January-End-User-ID", v.EndUserID)
 	m["foods"] = v.Foods
-	putOptional(m, "eaten_at", v.EatenAt)
+	putOptional(m, "created_at", v.EatenAt)
 	putOptional(m, "name", v.Name)
 	return json.Marshal(m)
 }
@@ -395,13 +395,13 @@ type CreateWaterLogBody struct {
 	// Amount: How much water. An end user's total is capped at 24 L (about 811 fl oz) per day.
 	Amount WaterAmount `json:"amount"`
 	// ConsumedAt: When the water was consumed — any ISO-8601 offset; stored and returned in UTC with milliseconds. Omitted = now. Its day is the one the daily cap counts it against.
-	ConsumedAt Optional[string] `json:"consumed_at"`
+	ConsumedAt Optional[string] `json:"created_at"`
 }
 
 func (v CreateWaterLogBody) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	m["amount"] = v.Amount
-	putOptional(m, "consumed_at", v.ConsumedAt)
+	putOptional(m, "created_at", v.ConsumedAt)
 	return json.Marshal(m)
 }
 func (v CreateWaterLogBody) String() string   { return "january.CreateWaterLogBody{[REDACTED]}" }
@@ -413,14 +413,14 @@ type CreateWaterLogRequest struct {
 	// Amount: How much water. An end user's total is capped at 24 L (about 811 fl oz) per day.
 	Amount WaterAmount `json:"amount"`
 	// ConsumedAt: When the water was consumed — any ISO-8601 offset; stored and returned in UTC with milliseconds. Omitted = now. Its day is the one the daily cap counts it against.
-	ConsumedAt Optional[string] `json:"consumed_at"`
+	ConsumedAt Optional[string] `json:"created_at"`
 }
 
 func (v CreateWaterLogRequest) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	putOptional(m, "January-End-User-ID", v.EndUserID)
 	m["amount"] = v.Amount
-	putOptional(m, "consumed_at", v.ConsumedAt)
+	putOptional(m, "created_at", v.ConsumedAt)
 	return json.Marshal(m)
 }
 func (v CreateWaterLogRequest) String() string   { return "january.CreateWaterLogRequest{[REDACTED]}" }
@@ -431,13 +431,13 @@ type CreateWeightLogBody struct {
 	// Weight: The measured weight. `value` must be 10–1000 for `lb`, or 4.5–453.6 for `kg`; it is stored and returned in the unit sent.
 	Weight Weight `json:"weight"`
 	// MeasuredAt: When the weight was measured — any ISO-8601 offset; stored and returned in UTC with milliseconds. Omitted = now.
-	MeasuredAt Optional[string] `json:"measured_at"`
+	MeasuredAt Optional[string] `json:"created_at"`
 }
 
 func (v CreateWeightLogBody) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	m["weight"] = v.Weight
-	putOptional(m, "measured_at", v.MeasuredAt)
+	putOptional(m, "created_at", v.MeasuredAt)
 	return json.Marshal(m)
 }
 func (v CreateWeightLogBody) String() string   { return "january.CreateWeightLogBody{[REDACTED]}" }
@@ -449,14 +449,14 @@ type CreateWeightLogRequest struct {
 	// Weight: The measured weight. `value` must be 10–1000 for `lb`, or 4.5–453.6 for `kg`; it is stored and returned in the unit sent.
 	Weight Weight `json:"weight"`
 	// MeasuredAt: When the weight was measured — any ISO-8601 offset; stored and returned in UTC with milliseconds. Omitted = now.
-	MeasuredAt Optional[string] `json:"measured_at"`
+	MeasuredAt Optional[string] `json:"created_at"`
 }
 
 func (v CreateWeightLogRequest) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	putOptional(m, "January-End-User-ID", v.EndUserID)
 	m["weight"] = v.Weight
-	putOptional(m, "measured_at", v.MeasuredAt)
+	putOptional(m, "created_at", v.MeasuredAt)
 	return json.Marshal(m)
 }
 func (v CreateWeightLogRequest) String() string   { return "january.CreateWeightLogRequest{[REDACTED]}" }
@@ -525,7 +525,7 @@ func (v DailyWaterTotal) GoString() string { return v.String() }
 type DailyWeight struct {
 	// Date: Local calendar date in the request’s `timezone`.
 	Date string `json:"date"`
-	// Weight: The weight with the latest `measured_at` on this day — later measurements replace earlier ones — in the unit it was logged in.
+	// Weight: The weight with the latest `created_at` on this day — later measurements replace earlier ones — in the unit it was logged in.
 	Weight Weight `json:"weight"`
 }
 
@@ -701,7 +701,7 @@ type FoodLog struct {
 	ID    *string      `json:"id"`
 	Foods []LoggedFood `json:"foods"`
 	// EatenAt: When the meal was eaten. UTC, with milliseconds.
-	EatenAt string `json:"eaten_at"`
+	EatenAt string `json:"created_at"`
 	// Name: Null when no name was given.
 	Name *string `json:"name"`
 }
@@ -710,7 +710,7 @@ func (v FoodLog) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	m["id"] = v.ID
 	m["foods"] = v.Foods
-	m["eaten_at"] = v.EatenAt
+	m["created_at"] = v.EatenAt
 	m["name"] = v.Name
 	return json.Marshal(m)
 }
@@ -1853,14 +1853,14 @@ func (v SuggestFoodAlternativesResponse) GoString() string { return v.String() }
 type UpdateFoodLogBody struct {
 	Foods Optional[[]FoodLogInputFood] `json:"foods"`
 	// EatenAt: When the meal was eaten — any ISO-8601 offset; stored and returned in UTC with milliseconds. Omit to leave it unchanged.
-	EatenAt Optional[string] `json:"eaten_at"`
+	EatenAt Optional[string] `json:"created_at"`
 	Name    Optional[string] `json:"name"`
 }
 
 func (v UpdateFoodLogBody) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	putOptional(m, "foods", v.Foods)
-	putOptional(m, "eaten_at", v.EatenAt)
+	putOptional(m, "created_at", v.EatenAt)
 	putOptional(m, "name", v.Name)
 	return json.Marshal(m)
 }
@@ -1873,7 +1873,7 @@ type UpdateFoodLogRequest struct {
 	LogID     FoodLogID                    `json:"log_id"`
 	Foods     Optional[[]FoodLogInputFood] `json:"foods"`
 	// EatenAt: When the meal was eaten — any ISO-8601 offset; stored and returned in UTC with milliseconds. Omit to leave it unchanged.
-	EatenAt Optional[string] `json:"eaten_at"`
+	EatenAt Optional[string] `json:"created_at"`
 	Name    Optional[string] `json:"name"`
 }
 
@@ -1882,7 +1882,7 @@ func (v UpdateFoodLogRequest) MarshalJSON() ([]byte, error) {
 	putOptional(m, "January-End-User-ID", v.EndUserID)
 	m["log_id"] = v.LogID
 	putOptional(m, "foods", v.Foods)
-	putOptional(m, "eaten_at", v.EatenAt)
+	putOptional(m, "created_at", v.EatenAt)
 	putOptional(m, "name", v.Name)
 	return json.Marshal(m)
 }
@@ -1916,7 +1916,7 @@ const (
 
 // WaterAmount is generated from the January contract.
 type WaterAmount struct {
-	// Value: Accepted range depends on unit: 1–811.5 fl_oz, 0.125–101.4 cup, 30–24000 ml.
+	// Value: Accepted range depends on unit: 1–811.5 fl_oz, 30–24000 ml, 0.1–101.4 cup.
 	Value float64    `json:"value"`
 	Unit  VolumeUnit `json:"unit"`
 }
@@ -1937,14 +1937,14 @@ type WaterLog struct {
 	// Amount: The amount as logged, in the unit it was sent in.
 	Amount WaterAmount `json:"amount"`
 	// ConsumedAt: When the water was consumed. UTC, with milliseconds.
-	ConsumedAt string `json:"consumed_at"`
+	ConsumedAt string `json:"created_at"`
 }
 
 func (v WaterLog) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	m["id"] = v.ID
 	m["amount"] = v.Amount
-	m["consumed_at"] = v.ConsumedAt
+	m["created_at"] = v.ConsumedAt
 	return json.Marshal(m)
 }
 func (v WaterLog) String() string   { return "january.WaterLog{[REDACTED]}" }
@@ -1974,13 +1974,13 @@ type WeightLog struct {
 	// Weight: The weight as logged, in the unit it was sent in.
 	Weight Weight `json:"weight"`
 	// MeasuredAt: When the weight was measured. UTC, with milliseconds.
-	MeasuredAt string `json:"measured_at"`
+	MeasuredAt string `json:"created_at"`
 }
 
 func (v WeightLog) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	m["weight"] = v.Weight
-	m["measured_at"] = v.MeasuredAt
+	m["created_at"] = v.MeasuredAt
 	return json.Marshal(m)
 }
 func (v WeightLog) String() string   { return "january.WeightLog{[REDACTED]}" }
