@@ -251,6 +251,15 @@ func createOutcomeUnknown(err error) bool {
 	return true
 }
 
+// sameInstant reports whether two RFC 3339 timestamps name the same instant. The
+// API returns the time it stored in UTC with milliseconds, so the runner's
+// whole-second offset time comes back in a different form.
+func sameInstant(returned, sent string) bool {
+	a, errA := time.Parse(time.RFC3339Nano, returned)
+	b, errB := time.Parse(time.RFC3339Nano, sent)
+	return errA == nil && errB == nil && a.Equal(b)
+}
+
 // recordUnconfirmed keeps a write the runner cannot clean up. A water log can
 // only be deleted by the ID its create returns (the list endpoint returns daily
 // totals), and a weight log cannot be deleted at all, so the report names the
@@ -639,7 +648,7 @@ outer:
 		value, meta, err := r.user.WeightLogs.Create(ctx, january.CreateWeightLogRequest{Weight: january.Weight{Value: 70, Unit: january.WeightUnitKg}, MeasuredAt: january.Value(loggedAt)})
 		if err == nil {
 			// A success reply the runner cannot confirm leaves the weight's state unknown.
-			err = assert(value != nil && value.Weight.Value == 70 && value.Weight.Unit == january.WeightUnitKg && value.MeasuredAt != "")
+			err = assert(value != nil && value.Weight.Value == 70 && value.Weight.Unit == january.WeightUnitKg && sameInstant(value.MeasuredAt, loggedAt))
 			if err != nil {
 				r.recordUnconfirmed("cleanup.weightLogs.unconfirmed", "weight_log_create_unconfirmed", loggedAt)
 				return meta, err

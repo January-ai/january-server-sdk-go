@@ -60,7 +60,7 @@ A water log can only be deleted by the ID its creation returns (the list endpoin
 daily totals), and a weight log cannot be deleted at all. So when a water or weight
 creation fails without a definitive rejection (a transport error, timeout, or 5xx reply),
 a water creation succeeds without an ID, or a weight creation's success reply does not
-match what was sent, the runner cannot confirm cleanup: it records a failed
+match the value, unit and measurement time sent, the runner cannot confirm cleanup: it records a failed
 `cleanup.waterLogs.unconfirmed` or `cleanup.weightLogs.unconfirmed` entry naming the
 fresh end user and the logged time, for server-side removal. Unresolved creation or
 cleanup failures remain failures. Token revocation is the canonical final operation:

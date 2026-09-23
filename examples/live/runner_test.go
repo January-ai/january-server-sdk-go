@@ -305,9 +305,16 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 			s.t.Error("weight log body unexpected")
 		}
 		body["weight"] = weight
-		if s.modes[id] == "malformed" {
+		// The API returns the stored time in UTC with milliseconds.
+		measured, _ := time.Parse(time.RFC3339Nano, fmt.Sprint(request["measured_at"]))
+		body["measured_at"] = measured.UTC().Format("2006-01-02T15:04:05.000Z")
+		switch s.modes[id] {
+		case "malformed":
 			// Recorded, but the success reply does not match what was sent.
 			body["weight"] = map[string]any{"value": 71, "unit": "kg"}
+		case "shifted":
+			// Recorded, but the reply names a different measurement time.
+			body["measured_at"] = measured.UTC().Add(time.Minute).Format("2006-01-02T15:04:05.000Z")
 		}
 	case "createClientToken":
 		s.minted = true
@@ -509,7 +516,7 @@ func TestRejectedWaterCreateNeedsNoCleanup(t *testing.T) {
 // success reply that does not match what was sent, is reported with the end user
 // and time; only a confirmed one is listed as retained.
 func TestAmbiguousWeightCreateIsReported(t *testing.T) {
-	for _, mode := range []string{"ambiguous", "disconnect", "malformed"} {
+	for _, mode := range []string{"ambiguous", "disconnect", "malformed", "shifted"} {
 		s := newFake(t, map[string]string{"createWeightLog": mode})
 		r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
 		if status(r, "weightLogs.create") != "FAIL" || s.count("createWeightLog") != 1 || len(r.Retained) != 0 {
