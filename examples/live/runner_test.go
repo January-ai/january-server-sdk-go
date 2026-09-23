@@ -287,6 +287,17 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		body["id"] = waterLogID
 		body["amount"] = amount
+		// The API returns the stored time in UTC with milliseconds.
+		consumed, _ := time.Parse(time.RFC3339Nano, fmt.Sprint(request["consumed_at"]))
+		body["consumed_at"] = consumed.UTC().Format("2006-01-02T15:04:05.000Z")
+		switch s.modes[id] {
+		case "malformed":
+			// Recorded, but the success reply does not match what was sent.
+			body["amount"] = map[string]any{"value": 9, "unit": "fl_oz"}
+		case "shifted":
+			// Recorded, but the reply names a different consumption time.
+			body["consumed_at"] = consumed.UTC().Add(time.Minute).Format("2006-01-02T15:04:05.000Z")
+		}
 		// A rejected create records nothing; an ambiguous one is recorded, then fails.
 		if s.modes[id] != "reject" {
 			s.water = body
@@ -491,6 +502,19 @@ func TestAmbiguousWaterCreateCleanup(t *testing.T) {
 		r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
 		if status(r, "waterLogs.create") != "FAIL" || status(r, "waterLogs.delete") != "BLOCKED" || status(r, "waterLogs.list") != "PASS" || s.count("createWaterLog") != 1 {
 			t.Fatalf("%s: wrong ambiguous water dependency status", mode)
+		}
+		unconfirmedCleanup(t, r, s, "cleanup.waterLogs.unconfirmed", "water_log_cleanup_unconfirmed")
+	}
+}
+
+// A water create whose reply does not echo the request is unconfirmed, and the
+// runner never deletes an ID it could not verify.
+func TestUnverifiedWaterReplyIsNotDeleted(t *testing.T) {
+	for _, mode := range []string{"malformed", "shifted"} {
+		s := newFake(t, map[string]string{"createWaterLog": mode})
+		r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
+		if status(r, "waterLogs.create") != "FAIL" || s.count("deleteWaterLog") != 0 {
+			t.Fatalf("%s: unverified water log deleted or passed", mode)
 		}
 		unconfirmedCleanup(t, r, s, "cleanup.waterLogs.unconfirmed", "water_log_cleanup_unconfirmed")
 	}

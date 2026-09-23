@@ -608,16 +608,21 @@ outer:
 	loggedAt := r.started.Format(time.RFC3339)
 	r.step("waterLogs.create", "", func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.WaterLogs.Create(ctx, january.CreateWaterLogRequest{Amount: january.WaterAmount{Value: 8, Unit: january.VolumeUnitFlOz}, ConsumedAt: january.Value(loggedAt)})
-		if value != nil && value.ID != "" {
-			waterLogID = value.ID
-			r.ownedWater[waterLogID] = true
-		} else if err == nil || createOutcomeUnknown(err) {
-			r.recordUnconfirmed("cleanup.waterLogs.unconfirmed", "water_log_cleanup_unconfirmed", loggedAt)
-		}
 		if err != nil {
+			if createOutcomeUnknown(err) {
+				r.recordUnconfirmed("cleanup.waterLogs.unconfirmed", "water_log_cleanup_unconfirmed", loggedAt)
+			}
 			return meta, err
 		}
-		return meta, assert(value != nil && value.ID != "" && value.Amount.Value == 8 && value.Amount.Unit == january.VolumeUnitFlOz)
+		// Delete only an ID whose reply echoes what was sent; any other success leaves
+		// the create unconfirmed, and an unverified ID is never deleted.
+		if value == nil || value.ID == "" || value.Amount.Value != 8 || value.Amount.Unit != january.VolumeUnitFlOz || !sameInstant(value.ConsumedAt, loggedAt) {
+			r.recordUnconfirmed("cleanup.waterLogs.unconfirmed", "water_log_cleanup_unconfirmed", loggedAt)
+			return meta, safeError("created_water_log_invalid")
+		}
+		waterLogID = value.ID
+		r.ownedWater[waterLogID] = true
+		return meta, nil
 	})
 	r.step("waterLogs.list", "", func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.WaterLogs.List(ctx, january.ListWaterLogsRequest{StartDate: r.day, EndDate: time.Now().UTC().Format("2006-01-02"), Timezone: "UTC", Unit: january.VolumeUnitFlOz})
