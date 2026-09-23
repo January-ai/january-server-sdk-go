@@ -77,7 +77,7 @@ func TestMissingKeyNoNetwork(t *testing.T) {
 		t.Fatal("missing key must fail before HTTP")
 	}
 	r := readReport(t, root)
-	if r.Status != "NOT_RUN" || r.Counts.Passed != 0 || r.Counts.Blocked != 21 {
+	if r.Status != "NOT_RUN" || r.Counts.Passed != 0 || r.Counts.Blocked != 26 {
 		t.Fatal("wrong not-run counts")
 	}
 }
@@ -97,6 +97,7 @@ type fakeService struct {
 	modes    map[string]string
 	userID   string
 	log      map[string]any
+	water    map[string]any
 	minted   bool
 	mu       sync.Mutex
 }
@@ -106,6 +107,7 @@ const mockToken = "ct-OFFLINE-token"
 const foodID = "909001"
 const servingID = "707001"
 const logID = "52fdd931-5acd-432a-a5fe-5a072d848b34"
+const waterLogID = "9c1f2a3b-4d5e-4f60-8a71-b2c3d4e5f607"
 
 func newFake(t *testing.T, modes map[string]string) *fakeService {
 	t.Helper()
@@ -183,7 +185,7 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 	if id == "revokeClientTokens" {
 		user, _ = request["end_user_id"].(string)
 	}
-	if strings.Contains(id, "FoodLog") || id == "createClientToken" || id == "revokeClientTokens" {
+	if strings.Contains(id, "FoodLog") || strings.Contains(id, "WaterLog") || strings.Contains(id, "WeightLog") || id == "createClientToken" || id == "revokeClientTokens" {
 		if !regexp.MustCompile("^sdk-e2e-go-[a-f0-9-]{36}$").MatchString(user) || len(user) > 64 {
 			s.t.Error("invalid isolated user")
 		}
@@ -194,8 +196,11 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 			s.t.Error("cross-user request")
 		}
 	}
-	if id == "listFoodLogs" && r.URL.Query().Get("timezone") != "UTC" {
+	if (id == "listFoodLogs" || id == "listWaterLogs" || id == "listWeightLogs") && r.URL.Query().Get("timezone") != "UTC" {
 		s.t.Error("missing UTC")
+	}
+	if id == "listWaterLogs" && r.URL.Query().Get("unit") != "fl_oz" {
+		s.t.Error("missing water unit")
 	}
 	if id == "predictGlucose" {
 		if request["timezone"] != "UTC" {
@@ -247,7 +252,7 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 	case "createFoodLog":
 		body["id"] = logID
 		body["name"] = request["name"]
-		body["eaten_at"] = request["eaten_at"]
+		body["created_at"] = request["created_at"]
 		body["foods"].([]any)[0].(map[string]any)["food_id"] = foodID
 		s.log = body
 	case "listFoodLogs":
@@ -275,6 +280,53 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, logID) {
 			s.t.Error("deleted unknown log")
 		}
+	case "createWaterLog":
+		amount, _ := request["amount"].(map[string]any)
+		if amount["unit"] != "fl_oz" || request["created_at"] == nil {
+			s.t.Error("water log body unexpected")
+		}
+		body["id"] = waterLogID
+		body["amount"] = amount
+		// The API returns the stored time in UTC with milliseconds.
+		consumed, _ := time.Parse(time.RFC3339Nano, fmt.Sprint(request["created_at"]))
+		body["created_at"] = consumed.UTC().Format("2006-01-02T15:04:05.000Z")
+		switch s.modes[id] {
+		case "malformed":
+			// Recorded, but the success reply does not match what was sent.
+			body["amount"] = map[string]any{"value": 9, "unit": "fl_oz"}
+		case "shifted":
+			// Recorded, but the reply names a different consumption time.
+			body["created_at"] = consumed.UTC().Add(time.Minute).Format("2006-01-02T15:04:05.000Z")
+		}
+		// A rejected create records nothing; an ambiguous one is recorded, then fails.
+		if s.modes[id] != "reject" {
+			s.water = body
+		}
+	case "listWaterLogs":
+		if s.water == nil {
+			body = map[string]any{"items": []any{}}
+		}
+	case "deleteWaterLog":
+		if !strings.HasSuffix(r.URL.Path, waterLogID) {
+			s.t.Error("deleted unknown water log")
+		}
+	case "createWeightLog":
+		weight, _ := request["weight"].(map[string]any)
+		if weight["unit"] != "kg" || request["created_at"] == nil {
+			s.t.Error("weight log body unexpected")
+		}
+		body["weight"] = weight
+		// The API returns the stored time in UTC with milliseconds.
+		measured, _ := time.Parse(time.RFC3339Nano, fmt.Sprint(request["created_at"]))
+		body["created_at"] = measured.UTC().Format("2006-01-02T15:04:05.000Z")
+		switch s.modes[id] {
+		case "malformed":
+			// Recorded, but the success reply does not match what was sent.
+			body["weight"] = map[string]any{"value": 71, "unit": "kg"}
+		case "shifted":
+			// Recorded, but the reply names a different measurement time.
+			body["created_at"] = measured.UTC().Add(time.Minute).Format("2006-01-02T15:04:05.000Z")
+		}
 	case "createClientToken":
 		s.minted = true
 		body = map[string]any{"token": mockToken, "expires_in": 300, "expires_at": time.Now().UTC().Add(5 * time.Minute).Format(time.RFC3339Nano), "end_user_id": user, "scopes": []string{"foods:read"}}
@@ -297,6 +349,11 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 		conn.Close()
 		return
 	}
+	if mode == "reject" {
+		w.WriteHeader(400)
+		_ = json.NewEncoder(w).Encode(map[string]string{"code": "daily_water_limit_exceeded", "message": "over the daily cap"})
+		return
+	}
 	if mode == "fail" || mode == "ambiguous" || mode == "secret" {
 		if mode == "secret" {
 			w.Header().Set("X-Request-ID", mockToken)
@@ -311,6 +368,9 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	if id == "deleteFoodLog" {
 		s.log = nil
+	}
+	if id == "deleteWaterLog" {
+		s.water = nil
 	}
 	if id == "revokeClientTokens" {
 		s.minted = false
@@ -346,7 +406,7 @@ func status(r runReport, label string) string {
 	}
 	return ""
 }
-func TestLiveWorkflowAll21Offline(t *testing.T) {
+func TestLiveWorkflowAll26Offline(t *testing.T) {
 	s := newFake(t, nil)
 	root := t.TempDir()
 	c := s.config(root)
@@ -356,7 +416,7 @@ func TestLiveWorkflowAll21Offline(t *testing.T) {
 		t.Fatal(out.String())
 	}
 	r := readReport(t, root)
-	if r.Status != "PASS" || r.Counts.Passed != 21 || r.Counts.Failed != 0 || r.Counts.Blocked != 0 || r.CleanupFailed != 0 {
+	if r.Status != "PASS" || r.Counts.Passed != 26 || r.Counts.Failed != 0 || r.Counts.Blocked != 0 || r.CleanupFailed != 0 {
 		t.Fatalf("wrong counts: %+v", r.Counts)
 	}
 	for _, f := range s.fixtures {
@@ -364,8 +424,11 @@ func TestLiveWorkflowAll21Offline(t *testing.T) {
 			t.Errorf("%s count %d", f.OperationID, s.count(f.OperationID))
 		}
 	}
-	if s.log != nil || s.minted {
+	if s.log != nil || s.water != nil || s.minted {
 		t.Fatal("leftovers")
+	}
+	if len(r.Retained) != 1 || r.Retained[0].Operation != "weightLogs.create" || r.Retained[0].Status != "RETAINED" || !strings.Contains(out.String(), "weightLogs.create RETAINED reason=no_delete_endpoint_run_user_only") {
+		t.Fatalf("retained weight log not reported: %+v", r.Retained)
 	}
 	data, _ := json.Marshal(r)
 	for _, secret := range []string{mockKey, mockToken, s.userID, "PRIVATE", "Breakfast Bowl", "data:image/png"} {
@@ -385,7 +448,7 @@ func TestFailureCleanupAndBlocked(t *testing.T) {
 			t.Error("dependency counted as success")
 		}
 	}
-	for _, label := range []string{"credits", "foods.autocomplete", "restaurants.search", "restaurants.getMenuItems", "restaurants.searchMenuItems", "foodLogs.list", "createClientToken", "revokeClientTokens"} {
+	for _, label := range []string{"credits", "foods.autocomplete", "restaurants.search", "restaurants.getMenuItems", "restaurants.searchMenuItems", "foodLogs.list", "waterLogs.create", "waterLogs.list", "waterLogs.delete", "weightLogs.create", "weightLogs.list", "createClientToken", "revokeClientTokens"} {
 		if status(r, label) != "PASS" {
 			t.Errorf("independent operation stopped: %s", label)
 		}
@@ -409,6 +472,88 @@ func TestAmbiguousCreateCleanup(t *testing.T) {
 	}
 	if s.log != nil || s.count("deleteFoodLog") != 1 || r.CleanupFailed != 0 {
 		t.Fatal("own ambiguous log not cleaned")
+	}
+}
+func unconfirmedCleanup(t *testing.T, r runReport, s *fakeService, label, code string) {
+	t.Helper()
+	found := 0
+	for _, v := range r.Cleanup {
+		if v.Operation != label {
+			continue
+		}
+		found++
+		at, err := time.Parse(time.RFC3339, v.At)
+		if v.Status != "FAIL" || v.Code != code || v.EndUserID == "" || v.EndUserID != s.userID || err != nil || time.Since(at) > time.Minute {
+			t.Fatalf("unconfirmed write not named: %+v", v)
+		}
+	}
+	if found != 1 || r.Status != "FAIL" || r.CleanupFailed < 1 {
+		t.Fatalf("unconfirmed write did not fail the run: %d %s %d", found, r.Status, r.CleanupFailed)
+	}
+}
+
+// A water create whose reply is an error the server may have committed behind, or
+// that never arrives, leaves a log the runner cannot find: the list endpoint only
+// returns daily totals. The run fails and names the end user and time instead of
+// passing silently.
+func TestAmbiguousWaterCreateCleanup(t *testing.T) {
+	for _, mode := range []string{"ambiguous", "disconnect"} {
+		s := newFake(t, map[string]string{"createWaterLog": mode})
+		r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
+		if status(r, "waterLogs.create") != "FAIL" || status(r, "waterLogs.delete") != "BLOCKED" || status(r, "waterLogs.list") != "PASS" || s.count("createWaterLog") != 1 {
+			t.Fatalf("%s: wrong ambiguous water dependency status", mode)
+		}
+		unconfirmedCleanup(t, r, s, "cleanup.waterLogs.unconfirmed", "water_log_cleanup_unconfirmed")
+	}
+}
+
+// A water create whose reply does not echo the request is unconfirmed, and the
+// runner never deletes an ID it could not verify.
+func TestUnverifiedWaterReplyIsNotDeleted(t *testing.T) {
+	for _, mode := range []string{"malformed", "shifted"} {
+		s := newFake(t, map[string]string{"createWaterLog": mode})
+		r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
+		if status(r, "waterLogs.create") != "FAIL" || s.count("deleteWaterLog") != 0 {
+			t.Fatalf("%s: unverified water log deleted or passed", mode)
+		}
+		unconfirmedCleanup(t, r, s, "cleanup.waterLogs.unconfirmed", "water_log_cleanup_unconfirmed")
+	}
+}
+
+func TestRejectedWaterCreateNeedsNoCleanup(t *testing.T) {
+	s := newFake(t, map[string]string{"createWaterLog": "reject"})
+	r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
+	if status(r, "waterLogs.create") != "FAIL" || r.CleanupFailed != 0 {
+		t.Fatalf("a rejected create was reported as unconfirmed: %+v", r.Cleanup)
+	}
+	if s.water != nil || s.count("deleteWaterLog") != 0 {
+		t.Fatal("a rejected create was recorded or deleted")
+	}
+	for _, v := range r.Cleanup {
+		if v.EndUserID != "" {
+			t.Fatalf("end user named without an unconfirmed write: %+v", v)
+		}
+	}
+}
+
+// Weight logs cannot be deleted. A create whose outcome is unknown, including a
+// success reply that does not match what was sent, is reported with the end user
+// and time; only a confirmed one is listed as retained.
+func TestAmbiguousWeightCreateIsReported(t *testing.T) {
+	for _, mode := range []string{"ambiguous", "disconnect", "malformed", "shifted"} {
+		s := newFake(t, map[string]string{"createWeightLog": mode})
+		r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
+		if status(r, "weightLogs.create") != "FAIL" || s.count("createWeightLog") != 1 || len(r.Retained) != 0 {
+			t.Fatalf("%s: wrong weight status", mode)
+		}
+		unconfirmedCleanup(t, r, s, "cleanup.weightLogs.unconfirmed", "weight_log_create_unconfirmed")
+	}
+}
+func TestWaterCleanupAfterFailedDelete(t *testing.T) {
+	s := newFake(t, map[string]string{"deleteWaterLog": "fail"})
+	r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
+	if r.Status != "FAIL" || status(r, "waterLogs.delete") != "FAIL" || s.count("deleteWaterLog") != 2 || r.CleanupFailed != 1 {
+		t.Fatalf("water cleanup missing: %+v", r.Counts)
 	}
 }
 func TestCleanupFailureFailsRun(t *testing.T) {

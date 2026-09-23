@@ -58,7 +58,7 @@ func NewFoodPortion(food FoodSearchItem, options FoodPortionOptions) (*FoodPorti
 		}
 		index = -1
 		for i, serving := range food.Servings {
-			if serving.ID != nil && *serving.ID == id {
+			if serving.ID == id {
 				index = i
 				break
 			}
@@ -75,7 +75,7 @@ func NewFoodPortion(food FoodSearchItem, options FoodPortionOptions) (*FoodPorti
 		}
 	}
 	serving := food.Servings[index]
-	if serving.ID == nil || serving.Quantity == nil || serving.ScalingFactor == nil ||
+	if serving.ID == "" || serving.Quantity == nil || serving.ScalingFactor == nil ||
 		!positiveFinite(*serving.Quantity) || !positiveFinite(*serving.ScalingFactor) {
 		return nil, &FoodPortionError{Code: FoodPortionInvalidServing}
 	}
@@ -96,7 +96,7 @@ func NewFoodPortion(food FoodSearchItem, options FoodPortionOptions) (*FoodPorti
 		Nutrition:     scalePortionNutrition(food.Nutrients, scale),
 		GlycemicIndex: optionalPortionNumber(food.GlycemicIndex, 1),
 		GlycemicLoad:  scalePortionNumber(food.GlycemicLoad, scale),
-		Selection:     FoodLogInputFood{FoodID: food.ID, ServingID: *serving.ID, Quantity: quantity},
+		Selection:     FoodLogInputFood{FoodID: food.ID, ServingID: serving.ID, Quantity: quantity},
 	}
 	if serving.WeightGrams != nil {
 		// Copy the model's pointer so neither snapshot aliases the caller's weight.
@@ -128,10 +128,6 @@ func scalePortionNumber(value *float64, scale float64) Optional[float64] {
 
 func cloneServingOption(serving ServingOption) ServingOption {
 	clone := serving
-	if serving.ID != nil {
-		value := *serving.ID
-		clone.ID = &value
-	}
 	if serving.Quantity != nil {
 		value := *serving.Quantity
 		clone.Quantity = &value

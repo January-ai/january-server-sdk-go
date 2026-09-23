@@ -45,18 +45,23 @@ if errors.As(err, &apiError) {
 ```
 
 Also available: `ErrBadRequest`, `ErrNotFound`, `ErrPayloadTooLarge`, and
-`ErrInternalServer`. `errors.As` still exposes `APIError` with redacted `Body`,
+`ErrInternalServer`. A water log that would take the day past 24 L answers
+`ErrBadRequest` with code `daily_water_limit_exceeded`, and a list range past the
+documented lookback answers it with `date_range_too_large`; neither is retried. `errors.As` still exposes `APIError` with redacted `Body`,
 bounded `Message`, and `RetryNote`. Only rate-limit and credit-limit codes override
 HTTP status classification, matching Python. Never log arbitrary response data.
 
 The default is two retries. Stable permanent codes override retryable HTTP status;
-unknown codes fall back to 429/500/502/503/504. Backoff has jitter and all attempts
-share one deadline. Cancellation interrupts waiting. `Retry-After` accepts seconds
+unknown codes fall back to 429/500/502/503/504. Token creation and food, water and
+weight-log creation are never replayed after a timeout, lost response, or 5xx reply,
+because the API may already have recorded the write; a 429 `rate_limited` reply is a
+definitive rejection that recorded nothing, so it is retried within the same limits.
+Backoff has jitter and all attempts share one deadline. Cancellation interrupts waiting. `Retry-After` accepts seconds
 or an HTTP date; excessive waits return the error with `RetryNote` immediately.
 
 ## Tests and release
 
-`go test -race ./...` covers all 21 generated operations, portion calculations,
+`go test -race ./...` covers all 26 generated operations, portion calculations,
 errors/retries, photos, quickstart, and a real installed module consumer against
 loopback HTTP. `go run ./examples/live` is the separate, billable production check;
 it reads the key from `.env` and disables retries. Offline tests are not production

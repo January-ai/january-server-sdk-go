@@ -20,7 +20,8 @@ import (
 var operationLabels = []string{
 	"credits", "foods.search", "foods.autocomplete", "foods.get", "foods.lookupBarcode", "foods.suggestAlternatives",
 	"restaurants.search", "restaurants.getMenuItems", "restaurants.searchMenuItems", "foodAnalysis.analyzePhoto", "foodAnalysis.analyzeDescription", "foodAnalysis.correct",
-	"foodLogs.create", "foodLogs.list", "foodLogs.getSummary", "foodLogs.get", "foodLogs.update", "foodLogs.delete", "glucose.predict", "createClientToken", "revokeClientTokens",
+	"foodLogs.create", "foodLogs.list", "foodLogs.getSummary", "foodLogs.get", "foodLogs.update", "foodLogs.delete",
+	"waterLogs.create", "waterLogs.list", "waterLogs.delete", "weightLogs.create", "weightLogs.list", "glucose.predict", "createClientToken", "revokeClientTokens",
 }
 
 type result struct {
@@ -30,6 +31,11 @@ type result struct {
 	RequestID  string `json:"requestId,omitempty"`
 	Reason     string `json:"reason,omitempty"`
 	DurationMS int64  `json:"durationMs"`
+	// EndUserID and At name the run's synthetic end user and the logged time,
+	// only on a write the runner could not clean up, so it can be found and
+	// removed server-side.
+	EndUserID string `json:"endUserId,omitempty"`
+	At        string `json:"at,omitempty"`
 }
 type counts struct {
 	Passed  int `json:"passed"`
@@ -43,13 +49,14 @@ type runReport struct {
 	DurationMS    int64    `json:"durationMs"`
 	Operations    []result `json:"operations"`
 	Cleanup       []result `json:"cleanup"`
+	Retained      []result `json:"retained"`
 	Checks        []result `json:"checks"`
 	Counts        counts   `json:"counts"`
 	CleanupFailed int      `json:"cleanupFailed"`
 }
 
 func newReport() runReport {
-	r := runReport{Language: "go", Status: "FAIL", StartedAt: time.Now().UTC().Format(time.RFC3339Nano), Cleanup: []result{}, Checks: []result{}}
+	r := runReport{Language: "go", Status: "FAIL", StartedAt: time.Now().UTC().Format(time.RFC3339Nano), Cleanup: []result{}, Retained: []result{}, Checks: []result{}}
 	for _, label := range operationLabels {
 		r.Operations = append(r.Operations, result{Operation: label, Status: "BLOCKED", Reason: "not_executed"})
 	}
@@ -90,6 +97,11 @@ func (r *runReport) finish() {
 		r.DurationMS = time.Since(start).Milliseconds()
 	}
 }
+
+// runUserPrefix marks the synthetic end user each run creates for itself. The
+// runner never writes logs for any other end user.
+const runUserPrefix = "sdk-e2e-go-"
+
 func freshUserID() (string, error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -97,7 +109,7 @@ func freshUserID() (string, error) {
 	}
 	b[6] = (b[6] & 15) | 64
 	b[8] = (b[8] & 63) | 128
-	return fmt.Sprintf("sdk-e2e-go-%x-%x-%x-%x-%x", b[:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
+	return fmt.Sprintf(runUserPrefix+"%x-%x-%x-%x-%x", b[:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
 }
 
 var safeIdentifier = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,128}$`)
@@ -153,6 +165,8 @@ type runner struct {
 	report                        runReport
 	emit                          func(result)
 	owned                         map[string]bool
+	ownedWater                    map[string]bool
+	unconfirmed                   []result
 	createUnresolved, mintAttempt bool
 }
 
@@ -222,6 +236,38 @@ func dependency(ok bool, reason string) string {
 	}
 	return reason
 }
+
+// createOutcomeUnknown reports whether a failed create may still have been
+// recorded. Local validation errors and 4xx replies are definitive rejections;
+// transport errors, timeouts, and 5xx replies leave the outcome unknown.
+func createOutcomeUnknown(err error) bool {
+	if err == nil || errors.Is(err, january.ErrInvalidInput) {
+		return false
+	}
+	var api *january.APIError
+	if errors.As(err, &api) {
+		return api.StatusCode >= 500
+	}
+	return true
+}
+
+// sameInstant reports whether two RFC 3339 timestamps name the same instant. The
+// API returns the time it stored in UTC with milliseconds, so the runner's
+// whole-second offset time comes back in a different form.
+func sameInstant(returned, sent string) bool {
+	a, errA := time.Parse(time.RFC3339Nano, returned)
+	b, errB := time.Parse(time.RFC3339Nano, sent)
+	return errA == nil && errB == nil && a.Equal(b)
+}
+
+// recordUnconfirmed keeps a write the runner cannot clean up. A water log can
+// only be deleted by the ID its create returns (the list endpoint returns daily
+// totals), and a weight log cannot be deleted at all, so the report names the
+// end user and time for server-side cleanup and the run fails.
+func (r *runner) recordUnconfirmed(label, code, at string) {
+	r.unconfirmed = append(r.unconfirmed, result{Operation: label, Status: "FAIL", Code: code, EndUserID: r.userID, At: at})
+}
+
 func (r *runner) rememberLogs(logs []january.FoodLog) {
 	if !r.createUnresolved {
 		return
@@ -269,6 +315,29 @@ func (r *runner) cleanup() {
 	if len(ids) == 0 && !r.createUnresolved {
 		r.cleanupStep("cleanup.foodLogs", func(context.Context) (*january.Response, error) { return nil, nil })
 	}
+	waterIDs := make([]string, 0, len(r.ownedWater))
+	for id := range r.ownedWater {
+		waterIDs = append(waterIDs, id)
+	}
+	sort.Strings(waterIDs)
+	for _, id := range waterIDs {
+		r.cleanupStep("cleanup.waterLogs.delete", func(ctx context.Context) (*january.Response, error) {
+			meta, err := r.user.WaterLogs.Delete(ctx, january.DeleteWaterLogRequest{LogID: id})
+			if err != nil {
+				return meta, err
+			}
+			if err = assert(meta != nil && meta.StatusCode == http.StatusNoContent); err == nil {
+				delete(r.ownedWater, id)
+			}
+			return meta, err
+		})
+	}
+	for _, v := range r.unconfirmed {
+		r.report.Cleanup = append(r.report.Cleanup, v)
+		if r.emit != nil {
+			r.emit(v)
+		}
+	}
 	// The canonical revoke operation is also the final token cleanup: ONE call total, never a loop.
 	previous := r.ctx
 	ctx, cancel := context.WithTimeout(context.Background(), r.cfg.timeout)
@@ -296,7 +365,7 @@ func (r *runner) cleanup() {
 }
 
 func runWorkflow(ctx context.Context, c config, emit func(result), newClient func(january.Config) (*january.Client, error)) (report runReport) {
-	r := runner{ctx: ctx, cfg: c, report: newReport(), emit: emit, owned: map[string]bool{}, started: time.Now().UTC()}
+	r := runner{ctx: ctx, cfg: c, report: newReport(), emit: emit, owned: map[string]bool{}, ownedWater: map[string]bool{}, started: time.Now().UTC()}
 	id, err := freshUserID()
 	if err == nil {
 		r.client, err = newClient(january.Config{SecretKey: c.key, Timeout: c.timeout, MaxRetries: january.Value(0)})
@@ -444,7 +513,7 @@ func runWorkflow(ctx context.Context, c config, emit func(result), newClient fun
 		return meta, assert(value != nil && len(value.Detections) > 0)
 	})
 	r.step("foodAnalysis.correct", dependency(scan != nil, "no_returned_detections"), func(ctx context.Context) (*january.Response, error) {
-		value, meta, err := r.user.FoodAnalysis.Correct(ctx, january.CorrectPhotoScanRequest{Analysis: *scan, Instruction: "The portion is one serving."})
+		value, meta, err := r.user.FoodAnalysis.Correct(ctx, january.CorrectPhotoScanRequest{Analysis: scan.Correction(), Instruction: "The portion is one serving."})
 		if err != nil {
 			return meta, err
 		}
@@ -455,8 +524,8 @@ outer:
 	for _, food := range candidates {
 		if food.ID != "" {
 			for _, serving := range food.Servings {
-				if serving.ID != nil && *serving.ID != "" {
-					selection = []january.FoodLogInputFood{{FoodID: food.ID, ServingID: *serving.ID, Quantity: 1}}
+				if serving.ID != "" {
+					selection = []january.FoodLogInputFood{{FoodID: food.ID, ServingID: serving.ID, Quantity: 1}}
 					break outer
 				}
 			}
@@ -474,7 +543,7 @@ outer:
 		if err != nil {
 			return meta, err
 		}
-		return meta, assert(value != nil && value.ID != nil && *value.ID != "" && len(value.Foods) > 0 && value.Foods[0].FoodID != nil && *value.Foods[0].FoodID == selection[0].FoodID)
+		return meta, assert(value != nil && value.ID != nil && *value.ID != "" && len(value.Foods) > 0 && value.Foods[0].FoodID == selection[0].FoodID)
 	})
 	r.step("foodLogs.list", "", func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.FoodLogs.List(ctx, january.ListFoodLogsRequest{StartDate: r.day, EndDate: time.Now().UTC().Format("2006-01-02"), Timezone: "UTC"})
@@ -534,6 +603,79 @@ outer:
 			delete(r.owned, logID)
 		}
 		return meta, err
+	})
+	var waterLogID string
+	loggedAt := r.started.Format(time.RFC3339)
+	r.step("waterLogs.create", "", func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.WaterLogs.Create(ctx, january.CreateWaterLogRequest{Amount: january.WaterAmount{Value: 8, Unit: january.VolumeUnitFlOz}, ConsumedAt: january.Value(loggedAt)})
+		if err != nil {
+			if createOutcomeUnknown(err) {
+				r.recordUnconfirmed("cleanup.waterLogs.unconfirmed", "water_log_cleanup_unconfirmed", loggedAt)
+			}
+			return meta, err
+		}
+		// Delete only an ID whose reply echoes what was sent; any other success leaves
+		// the create unconfirmed, and an unverified ID is never deleted.
+		if value == nil || value.ID == "" || value.Amount.Value != 8 || value.Amount.Unit != january.VolumeUnitFlOz || !sameInstant(value.ConsumedAt, loggedAt) {
+			r.recordUnconfirmed("cleanup.waterLogs.unconfirmed", "water_log_cleanup_unconfirmed", loggedAt)
+			return meta, safeError("created_water_log_invalid")
+		}
+		waterLogID = value.ID
+		r.ownedWater[waterLogID] = true
+		return meta, nil
+	})
+	r.step("waterLogs.list", "", func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.WaterLogs.List(ctx, january.ListWaterLogsRequest{StartDate: r.day, EndDate: time.Now().UTC().Format("2006-01-02"), Timezone: "UTC", Unit: january.VolumeUnitFlOz})
+		if err != nil {
+			return meta, err
+		}
+		if value == nil || value.Items == nil {
+			return meta, safeError("response_assertion_failed")
+		}
+		if waterLogID != "" && len(value.Items) == 0 {
+			return meta, safeError("created_log_not_listed")
+		}
+		return meta, nil
+	})
+	r.step("waterLogs.delete", dependency(waterLogID != "", "no_created_log_id"), func(ctx context.Context) (*january.Response, error) {
+		meta, err := r.user.WaterLogs.Delete(ctx, january.DeleteWaterLogRequest{LogID: waterLogID})
+		if err != nil {
+			return meta, err
+		}
+		if err = assert(meta != nil && meta.StatusCode == http.StatusNoContent); err == nil {
+			delete(r.ownedWater, waterLogID)
+		}
+		return meta, err
+	})
+	// Weight logs have no delete endpoint. The runner creates one only for its own
+	// synthetic end user, where it stays; the report lists it under retained.
+	r.step("weightLogs.create", dependency(strings.HasPrefix(r.userID, runUserPrefix), "not_a_run_owned_user"), func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.WeightLogs.Create(ctx, january.CreateWeightLogRequest{Weight: january.Weight{Value: 70, Unit: january.WeightUnitKg}, MeasuredAt: january.Value(loggedAt)})
+		if err == nil {
+			// A success reply the runner cannot confirm leaves the weight's state unknown.
+			err = assert(value != nil && value.Weight.Value == 70 && value.Weight.Unit == january.WeightUnitKg && sameInstant(value.MeasuredAt, loggedAt))
+			if err != nil {
+				r.recordUnconfirmed("cleanup.weightLogs.unconfirmed", "weight_log_create_unconfirmed", loggedAt)
+				return meta, err
+			}
+			retained := result{Operation: "weightLogs.create", Status: "RETAINED", Reason: "no_delete_endpoint_run_user_only"}
+			r.report.Retained = append(r.report.Retained, retained)
+			if r.emit != nil {
+				r.emit(retained)
+			}
+			return meta, nil
+		}
+		if createOutcomeUnknown(err) {
+			r.recordUnconfirmed("cleanup.weightLogs.unconfirmed", "weight_log_create_unconfirmed", loggedAt)
+		}
+		return meta, err
+	})
+	r.step("weightLogs.list", "", func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.WeightLogs.List(ctx, january.ListWeightLogsRequest{StartDate: r.day, EndDate: time.Now().UTC().Format("2006-01-02"), Timezone: "UTC"})
+		if err != nil {
+			return meta, err
+		}
+		return meta, assert(value != nil && value.Items != nil && len(value.Items) > 0)
 	})
 	r.step("glucose.predict", dependency(len(selection) > 0, "no_live_food_and_serving"), func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.Glucose.Predict(ctx, january.PredictGlucoseRequest{

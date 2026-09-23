@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -22,12 +23,44 @@ type validationSchema struct {
 	Enum       []any                      `json:"enum"`
 	Minimum    *float64                   `json:"minimum"`
 	Maximum    *float64                   `json:"maximum"`
-	MinLength  *int                       `json:"minLength"`
-	MaxLength  *int                       `json:"maxLength"`
-	MinItems   *int                       `json:"minItems"`
-	MaxItems   *int                       `json:"maxItems"`
-	Pattern    string                     `json:"pattern"`
-	Format     string                     `json:"format"`
+	// OpenAPI 3.0 exclusive bounds: true makes minimum/maximum exclusive.
+	ExclusiveMinimum bool `json:"exclusiveMinimum"`
+	ExclusiveMaximum bool `json:"exclusiveMaximum"`
+	// RangeByUnit holds an object's value to the range of the unit it names,
+	// for example 1–811.5 fl_oz but 30–24000 ml. A property holding a shared
+	// object may narrow it further (a weight-log weight is 10–1000 lb).
+	RangeByUnit *rangeByUnit `json:"x-january-range-by-unit"`
+	MinLength   *int         `json:"minLength"`
+	MaxLength   *int         `json:"maxLength"`
+	MinItems    *int         `json:"minItems"`
+	MaxItems    *int         `json:"maxItems"`
+	Pattern     string       `json:"pattern"`
+	Format      string       `json:"format"`
+}
+
+type rangeByUnit struct {
+	ValueProperty string `json:"valueProperty"`
+	UnitProperty  string `json:"unitProperty"`
+	Ranges        map[string]struct {
+		Minimum float64 `json:"minimum"`
+		Maximum float64 `json:"maximum"`
+	} `json:"ranges"`
+}
+
+// check applies the range of the object's unit to its value. An unknown or
+// missing unit is left to the unit property's own rule.
+func (r *rangeByUnit) check(object map[string]any, field string) error {
+	value, ok := object[r.ValueProperty].(float64)
+	unit, unitOK := object[r.UnitProperty].(string)
+	if !ok || !unitOK {
+		return nil
+	}
+	limits, known := r.Ranges[unit]
+	if !known || (value >= limits.Minimum && value <= limits.Maximum) {
+		return nil
+	}
+	format := func(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
+	return fmt.Errorf("%w: %s.%s must be from %s through %s %s", ErrInvalidInput, field, r.ValueProperty, format(limits.Minimum), format(limits.Maximum), unit)
 }
 
 func validateRaw(raw, rule json.RawMessage, field string) error {
@@ -107,7 +140,9 @@ func validateValue(value any, rule json.RawMessage, field string, depth int) err
 		if !ok {
 			return bad()
 		}
-		if (s.Type == "integer" && math.Trunc(v) != v) || (s.Minimum != nil && v < *s.Minimum) || (s.Maximum != nil && v > *s.Maximum) {
+		belowMinimum := s.Minimum != nil && (v < *s.Minimum || (s.ExclusiveMinimum && v == *s.Minimum))
+		aboveMaximum := s.Maximum != nil && (v > *s.Maximum || (s.ExclusiveMaximum && v == *s.Maximum))
+		if (s.Type == "integer" && math.Trunc(v) != v) || belowMinimum || aboveMaximum {
 			return bad()
 		}
 	case "boolean":
@@ -144,6 +179,9 @@ func validateValue(value any, rule json.RawMessage, field string, depth int) err
 				}
 			}
 		}
+	}
+	if object, ok := value.(map[string]any); ok && s.RangeByUnit != nil {
+		return s.RangeByUnit.check(object, field)
 	}
 	return nil
 }

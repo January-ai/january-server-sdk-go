@@ -16,7 +16,7 @@ func main() {
 	food := january.FoodSearchItem{
 		ID: "42", Name: &name,
 		Nutrients: january.NutritionFacts{Calories: january.Value(january.NutrientAmount{Value: 100, Unit: "kcal"})},
-		Servings:  []january.ServingOption{{ID: &servingID, Quantity: &servingQuantity, ScalingFactor: &scaling, IsPrimary: &primary}},
+		Servings:  []january.ServingOption{{ID: servingID, Quantity: &servingQuantity, ScalingFactor: &scaling, IsPrimary: &primary}},
 	}
 	var options january.FoodPortionOptions
 	options.Quantity = january.Value(4.0)

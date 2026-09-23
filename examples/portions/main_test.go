@@ -118,7 +118,7 @@ func main() {
     name, id, unit := "Synthetic food", "2", "piece"
     quantity, scaling, primary := 1.0, 1.0, true
     food := january.FoodSearchItem{ID: "42", Name: &name, Servings: []january.ServingOption{
-        {ID: &id, Quantity: &quantity, Unit: &unit, ScalingFactor: &scaling, IsPrimary: &primary},
+        {ID: id, Quantity: &quantity, Unit: &unit, ScalingFactor: &scaling, IsPrimary: &primary},
     }}
     if err := verify(food); err != nil { fmt.Fprintln(os.Stderr, err); os.Exit(1) }
     fmt.Println("Exact README FoodPortion prediction passed SDK validation; incomplete requests rejected; no network.")

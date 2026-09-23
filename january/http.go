@@ -112,10 +112,15 @@ func executeOnce(ctx context.Context, s service, op operation, input any, output
 		}
 	}
 	body := map[string]json.RawMessage{}
+	fields := map[string]any{}
 	for _, key := range op.BodyFields {
 		if v, ok := values[key]; ok {
 			body[key] = v
+			fields[key] = v
 		}
+	}
+	if err := validateBody(op, fields); err != nil {
+		return nil, err
 	}
 	var reader io.Reader
 	if len(op.BodyFields) > 0 || op.RequiredBody {

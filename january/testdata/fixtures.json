@@ -230,7 +230,8 @@
                 {
                   "id": "34113801",
                   "quantity": 0.5,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 }
               ]
             }
@@ -515,7 +516,8 @@
                 "serving": {
                   "id": "45678",
                   "quantity": 1,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 },
                 "nutrients": {}
               }
@@ -563,7 +565,8 @@
                 "serving": {
                   "id": "78901",
                   "quantity": 1,
-                  "unit": "medium"
+                  "unit": "medium",
+                  "weight_grams": 118
                 },
                 "nutrients": {}
               }
@@ -600,7 +603,8 @@
                   "serving": {
                     "id": "45678",
                     "quantity": 1,
-                    "unit": "cup"
+                    "unit": "cup",
+                    "weight_grams": 81
                   },
                   "nutrients": {}
                 }
@@ -629,7 +633,8 @@
                 "serving": {
                   "id": "45679",
                   "quantity": 1,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 },
                 "nutrients": {}
               }
@@ -664,7 +669,7 @@
               "quantity": 1.4
             }
           ],
-          "eaten_at": "2024-09-13T11:34:56Z"
+          "created_at": "2024-09-13T11:34:56Z"
         }
       },
       "response": {
@@ -692,7 +697,7 @@
               }
             }
           ],
-          "eaten_at": "2024-09-13T11:34:56Z",
+          "created_at": "2024-09-13T11:34:56Z",
           "name": null
         }
       }
@@ -748,7 +753,7 @@
                   }
                 }
               ],
-              "eaten_at": "2024-09-13T11:34:56Z",
+              "created_at": "2024-09-13T11:34:56Z",
               "name": null
             }
           ]
@@ -972,7 +977,7 @@
               }
             }
           ],
-          "eaten_at": "2024-09-13T11:34:56Z",
+          "created_at": "2024-09-13T11:34:56Z",
           "name": null
         }
       }
@@ -1027,7 +1032,7 @@
               }
             }
           ],
-          "eaten_at": "2024-09-13T11:34:56Z",
+          "created_at": "2024-09-13T11:34:56Z",
           "name": "Lunch"
         }
       }
@@ -1060,6 +1065,216 @@
           "x-request-id": "request-deleteFoodLog"
         },
         "body": null
+      }
+    },
+    {
+      "operationId": "createWaterLog",
+      "method": "POST",
+      "path": "/v1.2/water-logs",
+      "resource": "waterLogs",
+      "publicMethod": "create",
+      "audience": "shared",
+      "parameterNames": {
+        "January-End-User-ID": "endUserId",
+        "x-end-user-id": "endUserId",
+        "x-end-user-timezone": "endUserTimezone"
+      },
+      "request": {
+        "parameters": {
+          "header": {
+            "January-End-User-ID": "oren-sdk-test"
+          }
+        },
+        "body": {
+          "amount": {
+            "value": 8,
+            "unit": "fl_oz"
+          },
+          "created_at": "2026-09-10T14:30:15Z"
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "x-request-id": "request-createWaterLog"
+        },
+        "body": {
+          "id": "9c1f2a3b-4d5e-4f60-8a71-b2c3d4e5f607",
+          "amount": {
+            "value": 8,
+            "unit": "fl_oz"
+          },
+          "created_at": "2026-09-10T14:30:15.123Z"
+        }
+      }
+    },
+    {
+      "operationId": "listWaterLogs",
+      "method": "GET",
+      "path": "/v1.2/water-logs",
+      "resource": "waterLogs",
+      "publicMethod": "list",
+      "audience": "shared",
+      "parameterNames": {
+        "January-End-User-ID": "endUserId",
+        "x-end-user-id": "endUserId",
+        "x-end-user-timezone": "endUserTimezone"
+      },
+      "request": {
+        "parameters": {
+          "query": {
+            "start_date": "2026-09-01",
+            "end_date": "2026-09-10",
+            "timezone": "America/Los_Angeles",
+            "unit": "fl_oz"
+          },
+          "header": {
+            "January-End-User-ID": "oren-sdk-test"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "x-request-id": "request-listWaterLogs"
+        },
+        "body": {
+          "items": [
+            {
+              "date": "2026-09-09",
+              "total": {
+                "value": 48.5,
+                "unit": "fl_oz"
+              }
+            },
+            {
+              "date": "2026-09-10",
+              "total": {
+                "value": 64,
+                "unit": "fl_oz"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operationId": "deleteWaterLog",
+      "method": "DELETE",
+      "path": "/v1.2/water-logs/{log_id}",
+      "resource": "waterLogs",
+      "publicMethod": "delete",
+      "audience": "shared",
+      "parameterNames": {
+        "January-End-User-ID": "endUserId",
+        "x-end-user-id": "endUserId",
+        "x-end-user-timezone": "endUserTimezone"
+      },
+      "request": {
+        "parameters": {
+          "path": {
+            "log_id": "9c1f2a3b-4d5e-4f60-8a71-b2c3d4e5f607"
+          },
+          "header": {
+            "January-End-User-ID": "oren-sdk-test"
+          }
+        }
+      },
+      "response": {
+        "status": 204,
+        "headers": {
+          "x-request-id": "request-deleteWaterLog"
+        },
+        "body": null
+      }
+    },
+    {
+      "operationId": "createWeightLog",
+      "method": "POST",
+      "path": "/v1.2/weight-logs",
+      "resource": "weightLogs",
+      "publicMethod": "create",
+      "audience": "shared",
+      "parameterNames": {
+        "January-End-User-ID": "endUserId",
+        "x-end-user-id": "endUserId",
+        "x-end-user-timezone": "endUserTimezone"
+      },
+      "request": {
+        "parameters": {
+          "header": {
+            "January-End-User-ID": "oren-sdk-test"
+          }
+        },
+        "body": {
+          "weight": {
+            "value": 150,
+            "unit": "lb"
+          },
+          "created_at": "2026-09-10T14:30:15Z"
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "x-request-id": "request-createWeightLog"
+        },
+        "body": {
+          "weight": {
+            "value": 150,
+            "unit": "lb"
+          },
+          "created_at": "2026-09-10T14:30:15.123Z"
+        }
+      }
+    },
+    {
+      "operationId": "listWeightLogs",
+      "method": "GET",
+      "path": "/v1.2/weight-logs",
+      "resource": "weightLogs",
+      "publicMethod": "list",
+      "audience": "shared",
+      "parameterNames": {
+        "January-End-User-ID": "endUserId",
+        "x-end-user-id": "endUserId",
+        "x-end-user-timezone": "endUserTimezone"
+      },
+      "request": {
+        "parameters": {
+          "query": {
+            "start_date": "2026-09-01",
+            "end_date": "2026-09-10",
+            "timezone": "America/Los_Angeles"
+          },
+          "header": {
+            "January-End-User-ID": "oren-sdk-test"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "x-request-id": "request-listWeightLogs"
+        },
+        "body": {
+          "items": [
+            {
+              "date": "2026-09-08",
+              "weight": {
+                "value": 151.2,
+                "unit": "lb"
+              }
+            },
+            {
+              "date": "2026-09-10",
+              "weight": {
+                "value": 150,
+                "unit": "lb"
+              }
+            }
+          ]
+        }
       }
     },
     {
@@ -1162,7 +1377,8 @@
                 {
                   "id": "34113801",
                   "quantity": 0.5,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 }
               ]
             }
@@ -1207,7 +1423,8 @@
                 {
                   "id": "34113801",
                   "quantity": 0.5,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 }
               ]
             }
@@ -1247,7 +1464,8 @@
                 {
                   "id": "34113801",
                   "quantity": 0.5,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 }
               ]
             }
@@ -1291,7 +1509,8 @@
                 {
                   "id": "34113801",
                   "quantity": 0.5,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 }
               ]
             }
@@ -1343,7 +1562,8 @@
                 "serving": {
                   "id": "78901",
                   "quantity": 1,
-                  "unit": "medium"
+                  "unit": "medium",
+                  "weight_grams": 118
                 },
                 "nutrients": {
                   "calories": {
@@ -1405,7 +1625,8 @@
                 "serving": {
                   "id": "78901",
                   "quantity": 1,
-                  "unit": "medium"
+                  "unit": "medium",
+                  "weight_grams": 118
                 },
                 "nutrients": {}
               }
@@ -1453,7 +1674,8 @@
                 "serving": {
                   "id": "78901",
                   "quantity": 1,
-                  "unit": "medium"
+                  "unit": "medium",
+                  "weight_grams": 118
                 },
                 "nutrients": {
                   "calories": {
@@ -1509,7 +1731,8 @@
                 "serving": {
                   "id": "78901",
                   "quantity": 1,
-                  "unit": "medium"
+                  "unit": "medium",
+                  "weight_grams": 118
                 },
                 "nutrients": {
                   "calories": {
@@ -1570,7 +1793,8 @@
                 "serving": {
                   "id": "45678",
                   "quantity": 1,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 },
                 "nutrients": {
                   "calories": {
@@ -1632,7 +1856,8 @@
                 "serving": {
                   "id": "45678",
                   "quantity": 1,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 },
                 "nutrients": {}
               }
@@ -1680,7 +1905,8 @@
                 "serving": {
                   "id": "45678",
                   "quantity": 1,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 },
                 "nutrients": {
                   "calories": {
@@ -1736,7 +1962,8 @@
                 "serving": {
                   "id": "45678",
                   "quantity": 1,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 },
                 "nutrients": {
                   "calories": {
@@ -1797,7 +2024,8 @@
                 "serving": {
                   "id": "45679",
                   "quantity": 1,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 },
                 "nutrients": {
                   "calories": {
@@ -1859,7 +2087,8 @@
                 "serving": {
                   "id": "45679",
                   "quantity": 1,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 },
                 "nutrients": {}
               }
@@ -1907,7 +2136,8 @@
                 "serving": {
                   "id": "45679",
                   "quantity": 1,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 },
                 "nutrients": {
                   "calories": {
@@ -1963,7 +2193,8 @@
                 "serving": {
                   "id": "45679",
                   "quantity": 1,
-                  "unit": "cup"
+                  "unit": "cup",
+                  "weight_grams": 81
                 },
                 "nutrients": {
                   "calories": {

@@ -20,7 +20,8 @@ func retryableStatus(status int, code string) bool {
 		return true
 	// credit_limit_exceeded and request_limit_exceeded are 429s that reopen only at the
 	// start of the next calendar month, so backing off cannot succeed.
-	case "credit_limit_exceeded", "request_limit_exceeded", "invalid_request", "unauthorized", "forbidden", "not_found", "not_implemented", "payload_too_large":
+	case "credit_limit_exceeded", "request_limit_exceeded", "invalid_request", "unauthorized", "forbidden", "not_found", "conflict", "not_implemented", "payload_too_large",
+		"end_user_id_required", "date_range_too_large", "daily_water_limit_exceeded":
 		return false
 	}
 	return status == 429 || status == 500 || status == 502 || status == 503 || status == 504
@@ -57,7 +58,7 @@ func retryDelay(op operation, err error, attempt int, waited time.Duration) (tim
 	}
 	var api *APIError
 	if errors.As(err, &api) {
-		if !retryableStatus(api.StatusCode, api.Code) || (api.StatusCode != 429 && !op.RetryAmbiguous) {
+		if !retryableStatus(api.StatusCode, api.Code) || (api.StatusCode != 429 && !replayAllowed(op)) {
 			return 0, false, false
 		}
 		if api.Response != nil {
@@ -83,7 +84,7 @@ func retryDelay(op operation, err error, attempt int, waited time.Duration) (tim
 		preSend := errors.As(cause, &netOp) && netOp.Op == "dial"
 		var netError net.Error
 		ambiguous := errors.As(cause, &netError) || errors.Is(cause, io.EOF) || errors.Is(cause, io.ErrUnexpectedEOF)
-		if !preSend && !(op.RetryAmbiguous && ambiguous) {
+		if !preSend && !(replayAllowed(op) && ambiguous) {
 			return 0, false, false
 		}
 	}
