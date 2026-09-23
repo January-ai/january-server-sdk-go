@@ -1,0 +1,54 @@
+# Changelog
+
+## Unreleased
+
+## 0.2.0 - 2026-09-22
+
+### Breaking changes
+
+The v1.2 API changed the shape of analysis results, logged foods and scan
+corrections. Code written against 0.1.0 needs these updates to compile:
+
+- `ServingDetails` is removed. `LoggedFood.Serving` is now a `ServingSummary`, the
+  same serving type analysis results use, including `WeightGrams`.
+- `ServingSummary.ID` is a `string` and `ServingSummary.Quantity` a `float64`
+  (were `*string` and `*float64`); the API now always returns both.
+  `ServingSummary.WeightGrams` (`*float64`, nil when unknown) is new.
+- `DetectedFood.ID` is a `string` and `DetectedFood.Quantity` a `float64` (were
+  `*string` and `*float64`).
+- `CorrectPhotoScanRequest.Analysis` is a `CorrectionAnalysis` instead of a
+  `FoodScan`. Build it with `scan.Correction()`, or call
+  `FoodAnalysis.CorrectScan(ctx, scan, instruction)`.
+- `GlucosePredictionProfile.Age` is an `int64` (was `float64`); the API takes whole
+  years.
+
+### Added
+
+- Water logs: `WaterLogs.Create`, `WaterLogs.List` (one total per local day in the
+  requested unit) and `WaterLogs.Delete` (deleting an unknown log also succeeds).
+  Amounts are in `VolumeUnitFlOz`, `VolumeUnitCup` or `VolumeUnitMl`.
+- Weight logs: `WeightLogs.Create` and `WeightLogs.List` (latest weight per local
+  day). The API has no weight-log deletion.
+- The `ScopeWaterLogsRead`, `ScopeWaterLogsWrite`, `ScopeWeightLogsRead` and
+  `ScopeWeightLogsWrite` client-token scopes.
+- `FoodScan.Correction` and `FoodAnalysisService.CorrectScan`, which send a returned
+  scan back for correction without dropping any field.
+- `CreditPlan`, `NutrientUnit` and `VolumeUnit` string types with constants for the
+  documented values; unknown values the API adds later are kept as returned.
+
+### Changed
+
+- A water amount must be within its unit's range (1–811.5 fl oz, 0.125–101.4 cups,
+  30–24000 ml), and a food or serving quantity must be greater than zero, as the
+  API requires. Both are checked before any request is sent and return
+  `ErrInvalidInput`.
+- Token creation and food, water and weight-log creation are never replayed after
+  an ambiguous failure (a timeout, lost response or 5xx reply), because the API may
+  already have recorded the write. A 429 `rate_limited` reply recorded nothing, so
+  it is retried within the configured limits like any other request.
+- `FoodLogs.Update` rejects an update that sets no field before sending it, and
+  sends only the fields you set.
+
+## 0.1.0 - 2026-09-16
+
+Initial public release.
