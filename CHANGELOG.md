@@ -13,6 +13,8 @@ corrections. Code written against 0.1.0 needs these updates to compile:
   same serving type analysis results use, including `WeightGrams`.
 - `ServingSummary.ID` is a `string` and `ServingSummary.Quantity` a `float64`
   (were `*string` and `*float64`); the API now always returns both.
+- `ServingOption.ID`, `AlternativeFood.ID`, `RestaurantMenuItem.ID` and
+  `LoggedFood.FoodID` are `string` (were `*string`); the API always returns them.
   `ServingSummary.WeightGrams` (`*float64`, nil when unknown) is new.
 - `DetectedFood.ID` is a `string` and `DetectedFood.Quantity` a `float64` (were
   `*string` and `*float64`).
@@ -44,6 +46,12 @@ corrections. Code written against 0.1.0 needs these updates to compile:
   and a food or serving quantity must be
   greater than zero, as the API requires. These are checked before any request is
   sent and return `ErrInvalidInput`.
+- Photo analysis uses the reasoning-based analyzer when `Reasoning` is not set, as
+  the API now defaults to it. Set `Reasoning` with effort `none` for the standard
+  analyzer. The SDK sends `Reasoning` only when you set it.
+- Food and serving IDs must be 1–10 digits without a leading zero; other values
+  return `ErrInvalidInput` before any request. The `conflict` error code (409) is
+  never retried.
 - Token creation and food, water and weight-log creation are never replayed after
   an ambiguous failure (a timeout, lost response or 5xx reply), because the API may
   already have recorded the write. A 429 `rate_limited` reply recorded nothing, so
