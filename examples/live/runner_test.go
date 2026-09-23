@@ -252,7 +252,7 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 	case "createFoodLog":
 		body["id"] = logID
 		body["name"] = request["name"]
-		body["eaten_at"] = request["eaten_at"]
+		body["created_at"] = request["created_at"]
 		body["foods"].([]any)[0].(map[string]any)["food_id"] = foodID
 		s.log = body
 	case "listFoodLogs":
@@ -282,21 +282,21 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	case "createWaterLog":
 		amount, _ := request["amount"].(map[string]any)
-		if amount["unit"] != "fl_oz" || request["consumed_at"] == nil {
+		if amount["unit"] != "fl_oz" || request["created_at"] == nil {
 			s.t.Error("water log body unexpected")
 		}
 		body["id"] = waterLogID
 		body["amount"] = amount
 		// The API returns the stored time in UTC with milliseconds.
-		consumed, _ := time.Parse(time.RFC3339Nano, fmt.Sprint(request["consumed_at"]))
-		body["consumed_at"] = consumed.UTC().Format("2006-01-02T15:04:05.000Z")
+		consumed, _ := time.Parse(time.RFC3339Nano, fmt.Sprint(request["created_at"]))
+		body["created_at"] = consumed.UTC().Format("2006-01-02T15:04:05.000Z")
 		switch s.modes[id] {
 		case "malformed":
 			// Recorded, but the success reply does not match what was sent.
 			body["amount"] = map[string]any{"value": 9, "unit": "fl_oz"}
 		case "shifted":
 			// Recorded, but the reply names a different consumption time.
-			body["consumed_at"] = consumed.UTC().Add(time.Minute).Format("2006-01-02T15:04:05.000Z")
+			body["created_at"] = consumed.UTC().Add(time.Minute).Format("2006-01-02T15:04:05.000Z")
 		}
 		// A rejected create records nothing; an ambiguous one is recorded, then fails.
 		if s.modes[id] != "reject" {
@@ -312,20 +312,20 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	case "createWeightLog":
 		weight, _ := request["weight"].(map[string]any)
-		if weight["unit"] != "kg" || request["measured_at"] == nil {
+		if weight["unit"] != "kg" || request["created_at"] == nil {
 			s.t.Error("weight log body unexpected")
 		}
 		body["weight"] = weight
 		// The API returns the stored time in UTC with milliseconds.
-		measured, _ := time.Parse(time.RFC3339Nano, fmt.Sprint(request["measured_at"]))
-		body["measured_at"] = measured.UTC().Format("2006-01-02T15:04:05.000Z")
+		measured, _ := time.Parse(time.RFC3339Nano, fmt.Sprint(request["created_at"]))
+		body["created_at"] = measured.UTC().Format("2006-01-02T15:04:05.000Z")
 		switch s.modes[id] {
 		case "malformed":
 			// Recorded, but the success reply does not match what was sent.
 			body["weight"] = map[string]any{"value": 71, "unit": "kg"}
 		case "shifted":
 			// Recorded, but the reply names a different measurement time.
-			body["measured_at"] = measured.UTC().Add(time.Minute).Format("2006-01-02T15:04:05.000Z")
+			body["created_at"] = measured.UTC().Add(time.Minute).Format("2006-01-02T15:04:05.000Z")
 		}
 	case "createClientToken":
 		s.minted = true

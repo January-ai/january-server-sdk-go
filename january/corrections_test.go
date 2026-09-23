@@ -152,7 +152,7 @@ func TestWaterLogsAcceptCups(t *testing.T) {
 			body, _ := io.ReadAll(r.Body)
 			bodies = append(bodies, string(body))
 			w.WriteHeader(201)
-			_, _ = io.WriteString(w, `{"id":"78129823-8ba2-4183-b13b-71f0e963c606","amount":{"value":0.125,"unit":"cup"},"consumed_at":"2026-09-10T14:30:00.000Z"}`)
+			_, _ = io.WriteString(w, `{"id":"78129823-8ba2-4183-b13b-71f0e963c606","amount":{"value":0.1,"unit":"cup"},"created_at":"2026-09-10T14:30:00.000Z"}`)
 			return
 		}
 		units = append(units, r.URL.Query().Get("unit"))
@@ -164,8 +164,8 @@ func TestWaterLogsAcceptCups(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log, _, err := user.WaterLogs.Create(context.Background(), CreateWaterLogRequest{Amount: WaterAmount{Value: 0.125, Unit: VolumeUnitCup}})
-	if err != nil || log.Amount.Unit != VolumeUnitCup || len(bodies) != 1 || !strings.Contains(bodies[0], `"unit":"cup"`) {
+	log, _, err := user.WaterLogs.Create(context.Background(), CreateWaterLogRequest{Amount: WaterAmount{Value: 0.1, Unit: VolumeUnitCup}})
+	if err != nil || log.Amount.Unit != VolumeUnitCup || log.Amount.Value != 0.1 || len(bodies) != 1 || !strings.Contains(bodies[0], `"unit":"cup"`) {
 		t.Fatalf("cup create: %v %+v %v", err, log, bodies)
 	}
 	totals, _, err := user.WaterLogs.List(context.Background(), ListWaterLogsRequest{StartDate: "2026-09-10", EndDate: "2026-09-10", Timezone: "UTC", Unit: VolumeUnitCup})

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -156,7 +157,7 @@ func TestWaterAmountRangeDependsOnUnit(t *testing.T) {
 	}{
 		{VolumeUnitFlOz, []float64{1, 8, 811.5}, []float64{0.5, 0.999, 811.51, 1000}},
 		{VolumeUnitMl, []float64{30, 250, 24000}, []float64{1, 29.9, 24000.01}},
-		{VolumeUnitCup, []float64{0.125, 1, 101.4}, []float64{0.124, 101.41, 811.5}},
+		{VolumeUnitCup, []float64{0.1, 0.124, 1, 101.4}, []float64{0.099, 101.41, 811.5}},
 	} {
 		for _, value := range tc.accepted {
 			before := calls.Load()
@@ -391,5 +392,77 @@ func TestFoodAndServingIDPatterns(t *testing.T) {
 	}
 	if _, _, err := c.Foods.Get(context.Background(), GetFoodRequest{FoodID: "0133892962"}); !errors.Is(err, ErrInvalidInput) || calls.Load() != 1 {
 		t.Fatalf("leading-zero food id accepted: %v", err)
+	}
+}
+
+// The API names the time of every food, water and weight log created_at, in
+// requests and replies. The SDK keeps the EatenAt, ConsumedAt and MeasuredAt
+// fields and maps each of them to created_at in both directions.
+func TestLogTimesTravelAsCreatedAt(t *testing.T) {
+	const sent = "2026-09-10T07:30:00-07:00"
+	const stored = "2026-09-10T14:30:00.000Z"
+	const logID = "5b0f6c9e-3a1d-4e59-9a7b-0c2d4e6f8a10"
+	var mu sync.Mutex
+	bodies := map[string]map[string]any{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("%s %s: %v", r.Method, r.URL.Path, err)
+		}
+		mu.Lock()
+		bodies[r.Method+" "+r.URL.Path] = body
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodPatch {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusCreated)
+		}
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/v1.2/food-logs"):
+			_, _ = io.WriteString(w, `{"id":"`+logID+`","foods":[],"created_at":"`+stored+`","name":null}`)
+		case r.URL.Path == "/v1.2/water-logs":
+			_, _ = io.WriteString(w, `{"id":"`+logID+`","amount":{"value":8,"unit":"fl_oz"},"created_at":"`+stored+`"}`)
+		case r.URL.Path == "/v1.2/weight-logs":
+			_, _ = io.WriteString(w, `{"weight":{"value":70,"unit":"kg"},"created_at":"`+stored+`"}`)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	c, _ := NewClient(Config{SecretKey: "sk-test", BaseURL: server.URL, MaxRetries: Value(0)})
+	user, err := c.ForUser("user-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	food, _, err := user.FoodLogs.Create(ctx, CreateFoodLogRequest{Foods: []FoodLogInputFood{{FoodID: "84222716", ServingID: "67943292", Quantity: 1}}, EatenAt: Value(sent)})
+	if err != nil || food.EatenAt != stored {
+		t.Fatalf("food log create: %v %+v", err, food)
+	}
+	updated, _, err := user.FoodLogs.Update(ctx, UpdateFoodLogRequest{LogID: logID, EatenAt: Value(sent)})
+	if err != nil || updated.EatenAt != stored {
+		t.Fatalf("food log update: %v %+v", err, updated)
+	}
+	water, _, err := user.WaterLogs.Create(ctx, CreateWaterLogRequest{Amount: WaterAmount{Value: 8, Unit: VolumeUnitFlOz}, ConsumedAt: Value(sent)})
+	if err != nil || water.ConsumedAt != stored {
+		t.Fatalf("water log create: %v %+v", err, water)
+	}
+	weight, _, err := user.WeightLogs.Create(ctx, CreateWeightLogRequest{Weight: Weight{Value: 70, Unit: WeightUnitKg}, MeasuredAt: Value(sent)})
+	if err != nil || weight.MeasuredAt != stored {
+		t.Fatalf("weight log create: %v %+v", err, weight)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	for _, request := range []string{"POST /v1.2/food-logs", "PATCH /v1.2/food-logs/" + logID, "POST /v1.2/water-logs", "POST /v1.2/weight-logs"} {
+		body, ok := bodies[request]
+		if !ok || body["created_at"] != sent {
+			t.Errorf("%s did not send created_at: %v", request, body)
+		}
+		for _, previous := range []string{"eaten_at", "consumed_at", "measured_at"} {
+			if _, found := body[previous]; found {
+				t.Errorf("%s sent the previous wire name %s: %v", request, previous, body)
+			}
+		}
 	}
 }
