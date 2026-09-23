@@ -44,8 +44,9 @@ The image is read as bytes and sent as a base64 PNG/JPEG data URI. The descripti
 demo analyzes `one banana`. Correction reuses returned detections and meal name.
 Food logs and glucose prediction use actual returned food/serving IDs, never stale
 fixture IDs; the glucose profile is synthetic. The water log (8 fl oz) is listed
-and then deleted; the weight log (70 kg) is listed and stays on the fresh user,
-because the API has no weight-log deletion.
+and then deleted. The API has no weight-log deletion, so the runner creates its one
+weight log (70 kg) only for the run's own fresh user, where it stays; the report lists
+it under `retained`.
 
 Each run creates a fresh `sdk-e2e-go-UUID` user with timezone UTC. There is no option
 to select an existing user. Independent operations continue after failures;
@@ -53,8 +54,14 @@ dependent operations are BLOCKED with a static reason, never counted as passes.
 The runner validates the minted token's user, requested scope, token shape, and
 expiry. It does not make the optional client-token usability request.
 
-Final cleanup deletes only known food and water logs created by this run. If creation was ambiguous,
-it checks this fresh user's logs for the run's unique marker. Unresolved creation or
+Final cleanup deletes only known food and water logs created by this run. If a food-log
+creation was ambiguous, it checks this fresh user's logs for the run's unique marker.
+A water log can only be deleted by the ID its creation returns (the list endpoint returns
+daily totals), and a weight log cannot be deleted at all. So when a water or weight
+creation fails without a definitive rejection (a transport error, timeout, or 5xx reply)
+or succeeds without an ID, the runner cannot confirm cleanup: it records a failed
+`cleanup.waterLogs.unconfirmed` or `cleanup.weightLogs.unconfirmed` entry naming the
+fresh end user and the logged time, for server-side removal. Unresolved creation or
 cleanup failures remain failures. Token revocation is the canonical final operation:
 one `RevokeClientTokens` call total, even after an ambiguous mint timeout and even if
 the revoked count is 500. There are no automatic retries or revoke-all loops.
@@ -64,8 +71,8 @@ is asserted because server caches may take 60 seconds to expire.
 
 Output contains only operation labels, statuses, safe codes/request IDs, and static
 blocked reasons. A safe report with durations and counts is written atomically to
-`.e2e-results/latest.json`; it contains no key, token, user ID, food text, or response
-body. Exit is zero only if all 26 operations and cleanup pass. Hard process termination
+`.e2e-results/latest.json`; it contains no key, token, food text, or response body, and
+names the run's synthetic user ID only on an unconfirmed-cleanup entry. Exit is zero only if all 26 operations and cleanup pass. Hard process termination
 or machine failure can prevent final cleanup; use ordinary Ctrl-C for bounded cleanup.
 
 Offline runner-only tests use a test-owned client constructor with localhost

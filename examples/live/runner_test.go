@@ -287,7 +287,10 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		body["id"] = waterLogID
 		body["amount"] = amount
-		s.water = body
+		// A rejected create records nothing; an ambiguous one is recorded, then fails.
+		if s.modes[id] != "reject" {
+			s.water = body
+		}
 	case "listWaterLogs":
 		if s.water == nil {
 			body = map[string]any{"items": []any{}}
@@ -322,6 +325,11 @@ func (s *fakeService) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		conn.Close()
+		return
+	}
+	if mode == "reject" {
+		w.WriteHeader(400)
+		_ = json.NewEncoder(w).Encode(map[string]string{"code": "daily_water_limit_exceeded", "message": "over the daily cap"})
 		return
 	}
 	if mode == "fail" || mode == "ambiguous" || mode == "secret" {
@@ -397,6 +405,9 @@ func TestLiveWorkflowAll26Offline(t *testing.T) {
 	if s.log != nil || s.water != nil || s.minted {
 		t.Fatal("leftovers")
 	}
+	if len(r.Retained) != 1 || r.Retained[0].Operation != "weightLogs.create" || r.Retained[0].Status != "RETAINED" || !strings.Contains(out.String(), "weightLogs.create RETAINED reason=no_delete_endpoint_run_user_only") {
+		t.Fatalf("retained weight log not reported: %+v", r.Retained)
+	}
 	data, _ := json.Marshal(r)
 	for _, secret := range []string{mockKey, mockToken, s.userID, "PRIVATE", "Breakfast Bowl", "data:image/png"} {
 		if bytes.Contains(data, []byte(secret)) || strings.Contains(out.String(), secret) {
@@ -441,11 +452,65 @@ func TestAmbiguousCreateCleanup(t *testing.T) {
 		t.Fatal("own ambiguous log not cleaned")
 	}
 }
+func unconfirmedCleanup(t *testing.T, r runReport, s *fakeService, label, code string) {
+	t.Helper()
+	found := 0
+	for _, v := range r.Cleanup {
+		if v.Operation != label {
+			continue
+		}
+		found++
+		at, err := time.Parse(time.RFC3339, v.At)
+		if v.Status != "FAIL" || v.Code != code || v.EndUserID == "" || v.EndUserID != s.userID || err != nil || time.Since(at) > time.Minute {
+			t.Fatalf("unconfirmed write not named: %+v", v)
+		}
+	}
+	if found != 1 || r.Status != "FAIL" || r.CleanupFailed < 1 {
+		t.Fatalf("unconfirmed write did not fail the run: %d %s %d", found, r.Status, r.CleanupFailed)
+	}
+}
+
+// A water create whose reply is an error the server may have committed behind, or
+// that never arrives, leaves a log the runner cannot find: the list endpoint only
+// returns daily totals. The run fails and names the end user and time instead of
+// passing silently.
 func TestAmbiguousWaterCreateCleanup(t *testing.T) {
-	s := newFake(t, map[string]string{"createWaterLog": "ambiguous"})
+	for _, mode := range []string{"ambiguous", "disconnect"} {
+		s := newFake(t, map[string]string{"createWaterLog": mode})
+		r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
+		if status(r, "waterLogs.create") != "FAIL" || status(r, "waterLogs.delete") != "BLOCKED" || status(r, "waterLogs.list") != "PASS" || s.count("createWaterLog") != 1 {
+			t.Fatalf("%s: wrong ambiguous water dependency status", mode)
+		}
+		unconfirmedCleanup(t, r, s, "cleanup.waterLogs.unconfirmed", "water_log_cleanup_unconfirmed")
+	}
+}
+
+func TestRejectedWaterCreateNeedsNoCleanup(t *testing.T) {
+	s := newFake(t, map[string]string{"createWaterLog": "reject"})
 	r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
-	if status(r, "waterLogs.create") != "FAIL" || status(r, "waterLogs.delete") != "BLOCKED" || status(r, "waterLogs.list") != "PASS" || s.count("createWaterLog") != 1 {
-		t.Fatal("wrong ambiguous water dependency status")
+	if status(r, "waterLogs.create") != "FAIL" || r.CleanupFailed != 0 {
+		t.Fatalf("a rejected create was reported as unconfirmed: %+v", r.Cleanup)
+	}
+	if s.water != nil || s.count("deleteWaterLog") != 0 {
+		t.Fatal("a rejected create was recorded or deleted")
+	}
+	for _, v := range r.Cleanup {
+		if v.EndUserID != "" {
+			t.Fatalf("end user named without an unconfirmed write: %+v", v)
+		}
+	}
+}
+
+// Weight logs cannot be deleted. A create whose outcome is unknown is reported
+// with the end user and time; a confirmed one is listed as retained.
+func TestAmbiguousWeightCreateIsReported(t *testing.T) {
+	for _, mode := range []string{"ambiguous", "disconnect"} {
+		s := newFake(t, map[string]string{"createWeightLog": mode})
+		r := runWorkflow(context.Background(), s.config(t.TempDir()), nil, s.newClient)
+		if status(r, "weightLogs.create") != "FAIL" || s.count("createWeightLog") != 1 || len(r.Retained) != 0 {
+			t.Fatalf("%s: wrong weight status", mode)
+		}
+		unconfirmedCleanup(t, r, s, "cleanup.weightLogs.unconfirmed", "weight_log_create_unconfirmed")
 	}
 }
 func TestWaterCleanupAfterFailedDelete(t *testing.T) {

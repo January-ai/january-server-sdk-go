@@ -31,6 +31,11 @@ type result struct {
 	RequestID  string `json:"requestId,omitempty"`
 	Reason     string `json:"reason,omitempty"`
 	DurationMS int64  `json:"durationMs"`
+	// EndUserID and At name the run's synthetic end user and the logged time,
+	// only on a write the runner could not clean up, so it can be found and
+	// removed server-side.
+	EndUserID string `json:"endUserId,omitempty"`
+	At        string `json:"at,omitempty"`
 }
 type counts struct {
 	Passed  int `json:"passed"`
@@ -44,13 +49,14 @@ type runReport struct {
 	DurationMS    int64    `json:"durationMs"`
 	Operations    []result `json:"operations"`
 	Cleanup       []result `json:"cleanup"`
+	Retained      []result `json:"retained"`
 	Checks        []result `json:"checks"`
 	Counts        counts   `json:"counts"`
 	CleanupFailed int      `json:"cleanupFailed"`
 }
 
 func newReport() runReport {
-	r := runReport{Language: "go", Status: "FAIL", StartedAt: time.Now().UTC().Format(time.RFC3339Nano), Cleanup: []result{}, Checks: []result{}}
+	r := runReport{Language: "go", Status: "FAIL", StartedAt: time.Now().UTC().Format(time.RFC3339Nano), Cleanup: []result{}, Retained: []result{}, Checks: []result{}}
 	for _, label := range operationLabels {
 		r.Operations = append(r.Operations, result{Operation: label, Status: "BLOCKED", Reason: "not_executed"})
 	}
@@ -91,6 +97,11 @@ func (r *runReport) finish() {
 		r.DurationMS = time.Since(start).Milliseconds()
 	}
 }
+
+// runUserPrefix marks the synthetic end user each run creates for itself. The
+// runner never writes logs for any other end user.
+const runUserPrefix = "sdk-e2e-go-"
+
 func freshUserID() (string, error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -98,7 +109,7 @@ func freshUserID() (string, error) {
 	}
 	b[6] = (b[6] & 15) | 64
 	b[8] = (b[8] & 63) | 128
-	return fmt.Sprintf("sdk-e2e-go-%x-%x-%x-%x-%x", b[:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
+	return fmt.Sprintf(runUserPrefix+"%x-%x-%x-%x-%x", b[:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
 }
 
 var safeIdentifier = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,128}$`)
@@ -155,6 +166,7 @@ type runner struct {
 	emit                          func(result)
 	owned                         map[string]bool
 	ownedWater                    map[string]bool
+	unconfirmed                   []result
 	createUnresolved, mintAttempt bool
 }
 
@@ -224,6 +236,29 @@ func dependency(ok bool, reason string) string {
 	}
 	return reason
 }
+
+// createOutcomeUnknown reports whether a failed create may still have been
+// recorded. Local validation errors and 4xx replies are definitive rejections;
+// transport errors, timeouts, and 5xx replies leave the outcome unknown.
+func createOutcomeUnknown(err error) bool {
+	if err == nil || errors.Is(err, january.ErrInvalidInput) {
+		return false
+	}
+	var api *january.APIError
+	if errors.As(err, &api) {
+		return api.StatusCode >= 500
+	}
+	return true
+}
+
+// recordUnconfirmed keeps a write the runner cannot clean up. A water log can
+// only be deleted by the ID its create returns (the list endpoint returns daily
+// totals), and a weight log cannot be deleted at all, so the report names the
+// end user and time for server-side cleanup and the run fails.
+func (r *runner) recordUnconfirmed(label, code, at string) {
+	r.unconfirmed = append(r.unconfirmed, result{Operation: label, Status: "FAIL", Code: code, EndUserID: r.userID, At: at})
+}
+
 func (r *runner) rememberLogs(logs []january.FoodLog) {
 	if !r.createUnresolved {
 		return
@@ -287,6 +322,12 @@ func (r *runner) cleanup() {
 			}
 			return meta, err
 		})
+	}
+	for _, v := range r.unconfirmed {
+		r.report.Cleanup = append(r.report.Cleanup, v)
+		if r.emit != nil {
+			r.emit(v)
+		}
 	}
 	// The canonical revoke operation is also the final token cleanup: ONE call total, never a loop.
 	previous := r.ctx
@@ -555,11 +596,14 @@ outer:
 		return meta, err
 	})
 	var waterLogID string
+	loggedAt := r.started.Format(time.RFC3339)
 	r.step("waterLogs.create", "", func(ctx context.Context) (*january.Response, error) {
-		value, meta, err := r.user.WaterLogs.Create(ctx, january.CreateWaterLogRequest{Amount: january.WaterAmount{Value: 8, Unit: january.VolumeUnitFlOz}, ConsumedAt: january.Value(r.started.Format(time.RFC3339))})
+		value, meta, err := r.user.WaterLogs.Create(ctx, january.CreateWaterLogRequest{Amount: january.WaterAmount{Value: 8, Unit: january.VolumeUnitFlOz}, ConsumedAt: january.Value(loggedAt)})
 		if value != nil && value.ID != "" {
 			waterLogID = value.ID
 			r.ownedWater[waterLogID] = true
+		} else if err == nil || createOutcomeUnknown(err) {
+			r.recordUnconfirmed("cleanup.waterLogs.unconfirmed", "water_log_cleanup_unconfirmed", loggedAt)
 		}
 		if err != nil {
 			return meta, err
@@ -589,8 +633,19 @@ outer:
 		}
 		return meta, err
 	})
-	r.step("weightLogs.create", "", func(ctx context.Context) (*january.Response, error) {
-		value, meta, err := r.user.WeightLogs.Create(ctx, january.CreateWeightLogRequest{Weight: january.Weight{Value: 70, Unit: january.WeightUnitKg}, MeasuredAt: january.Value(r.started.Format(time.RFC3339))})
+	// Weight logs have no delete endpoint. The runner creates one only for its own
+	// synthetic end user, where it stays; the report lists it under retained.
+	r.step("weightLogs.create", dependency(strings.HasPrefix(r.userID, runUserPrefix), "not_a_run_owned_user"), func(ctx context.Context) (*january.Response, error) {
+		value, meta, err := r.user.WeightLogs.Create(ctx, january.CreateWeightLogRequest{Weight: january.Weight{Value: 70, Unit: january.WeightUnitKg}, MeasuredAt: january.Value(loggedAt)})
+		if err == nil {
+			retained := result{Operation: "weightLogs.create", Status: "RETAINED", Reason: "no_delete_endpoint_run_user_only"}
+			r.report.Retained = append(r.report.Retained, retained)
+			if r.emit != nil {
+				r.emit(retained)
+			}
+		} else if createOutcomeUnknown(err) {
+			r.recordUnconfirmed("cleanup.weightLogs.unconfirmed", "weight_log_create_unconfirmed", loggedAt)
+		}
 		if err != nil {
 			return meta, err
 		}
