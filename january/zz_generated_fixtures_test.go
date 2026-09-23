@@ -130,6 +130,37 @@ func invokeFixture(c *Client, id string, raw []byte) (any, *Response, error) {
 		}
 		response, err := c.FoodLogs.Delete(context.Background(), input)
 		return nil, response, err
+	case "createWaterLog":
+		var input CreateWaterLogRequest
+		if err := json.Unmarshal(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		return c.WaterLogs.Create(context.Background(), input)
+	case "listWaterLogs":
+		var input ListWaterLogsRequest
+		if err := json.Unmarshal(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		return c.WaterLogs.List(context.Background(), input)
+	case "deleteWaterLog":
+		var input DeleteWaterLogRequest
+		if err := json.Unmarshal(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		response, err := c.WaterLogs.Delete(context.Background(), input)
+		return nil, response, err
+	case "createWeightLog":
+		var input CreateWeightLogRequest
+		if err := json.Unmarshal(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		return c.WeightLogs.Create(context.Background(), input)
+	case "listWeightLogs":
+		var input ListWeightLogsRequest
+		if err := json.Unmarshal(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		return c.WeightLogs.List(context.Background(), input)
 	case "predictGlucose":
 		var input PredictGlucoseRequest
 		if err := json.Unmarshal(raw, &input); err != nil {
