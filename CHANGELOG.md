@@ -40,7 +40,8 @@ corrections. Code written against 0.1.0 needs these updates to compile:
 
 - A water amount must be within its unit's range (1–811.5 fl oz, 0.125–101.4 cups,
   30–24000 ml), a weight log within 10–1000 lb or 4.5–453.6 kg, a glucose profile's
-  weight within 2–1500 lb or 1–700 kg, and a food or serving quantity must be
+  weight within 2–1500 lb or 1–700 kg and its height within 20–108 in or 50–275 cm,
+  and a food or serving quantity must be
   greater than zero, as the API requires. These are checked before any request is
   sent and return `ErrInvalidInput`.
 - Token creation and food, water and weight-log creation are never replayed after

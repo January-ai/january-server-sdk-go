@@ -322,3 +322,46 @@ func TestWeightRangeDependsOnUnitAndEndpoint(t *testing.T) {
 		t.Fatalf("glucose profile range not named: %v", err)
 	}
 }
+
+// A glucose profile's height takes 20–108 in or 50–275 cm.
+func TestHeightRangeDependsOnUnit(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		_, _ = w.Write(fixtureFor(t, "predictGlucose").Response.Body)
+	}))
+	defer server.Close()
+	c, _ := NewClient(Config{SecretKey: "sk-test", BaseURL: server.URL, MaxRetries: Value(0)})
+	predict := func(value float64, unit HeightUnit) error {
+		_, _, err := c.Glucose.Predict(context.Background(), PredictGlucoseRequest{
+			UserProfile: GlucosePredictionProfile{Age: 30, Sex: SexMale, Height: Height{Value: value, Unit: unit}, Weight: Weight{Value: 70, Unit: WeightUnitKg}},
+			Timezone:    "UTC",
+			Foods:       []FoodLogInputFood{{FoodID: "84222716", ServingID: "67943292", Quantity: 1}},
+			StartTime:   "2026-09-10T12:00:00Z",
+		})
+		return err
+	}
+	for _, tc := range []struct {
+		unit              HeightUnit
+		accepted, refused []float64
+	}{
+		{HeightUnitIn, []float64{20, 65, 108}, []float64{19.9, 108.1, 200, 275}},
+		{HeightUnitCm, []float64{50, 175, 275}, []float64{20, 49.9, 275.1}},
+	} {
+		for _, value := range tc.accepted {
+			before := calls.Load()
+			if err := predict(value, tc.unit); err != nil || calls.Load() != before+1 {
+				t.Errorf("%v %s refused: %v", value, tc.unit, err)
+			}
+		}
+		for _, value := range tc.refused {
+			before := calls.Load()
+			if err := predict(value, tc.unit); !errors.Is(err, ErrInvalidInput) || calls.Load() != before {
+				t.Errorf("%v %s accepted or sent: %v", value, tc.unit, err)
+			}
+		}
+	}
+	if err := predict(200, HeightUnitIn); err == nil || !strings.Contains(err.Error(), "body.user_profile.height.value must be from 20 through 108 in") {
+		t.Fatalf("height range not named: %v", err)
+	}
+}
