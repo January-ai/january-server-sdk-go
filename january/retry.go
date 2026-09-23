@@ -20,7 +20,7 @@ func retryableStatus(status int, code string) bool {
 		return true
 	// credit_limit_exceeded and request_limit_exceeded are 429s that reopen only at the
 	// start of the next calendar month, so backing off cannot succeed.
-	case "credit_limit_exceeded", "request_limit_exceeded", "invalid_request", "unauthorized", "forbidden", "not_found", "not_implemented", "payload_too_large",
+	case "credit_limit_exceeded", "request_limit_exceeded", "invalid_request", "unauthorized", "forbidden", "not_found", "conflict", "not_implemented", "payload_too_large",
 		"end_user_id_required", "date_range_too_large", "daily_water_limit_exceeded":
 		return false
 	}

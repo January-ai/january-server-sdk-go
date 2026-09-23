@@ -41,7 +41,7 @@ func TestErrorClassificationMatchesPython(t *testing.T) {
 
 func TestRetryPolicyAndBudgets(t *testing.T) {
 	for _, status := range []int{400, 401, 403, 404, 413, 429, 500, 501, 502, 503, 504} {
-		for _, code := range []string{"credit_limit_exceeded", "request_limit_exceeded", "invalid_request", "unauthorized", "forbidden", "not_found", "not_implemented", "payload_too_large", "end_user_id_required", "date_range_too_large", "daily_water_limit_exceeded"} {
+		for _, code := range []string{"credit_limit_exceeded", "request_limit_exceeded", "invalid_request", "unauthorized", "forbidden", "not_found", "conflict", "not_implemented", "payload_too_large", "end_user_id_required", "date_range_too_large", "daily_water_limit_exceeded"} {
 			if retryableStatus(status, code) {
 				t.Fatalf("retried permanent %d/%s", status, code)
 			}
