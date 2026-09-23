@@ -346,7 +346,8 @@ corrected, _, err := user.FoodAnalysis.CorrectScan(ctx, *analysis, "make it thre
 
 Water and weight logs take the same end-user context as food logs. Water
 amounts are in `VolumeUnitFlOz` (1–811.5), `VolumeUnitCup` (0.125–101.4) or
-`VolumeUnitMl` (30–24000). Water lists one total per local day in the unit you
+`VolumeUnitMl` (30–24000); a value outside its unit's range is rejected with
+`ErrInvalidInput` before any request. Water lists one total per local day in the unit you
 ask for; weight lists the latest measurement per local day. A water log can be
 deleted by its returned `ID`; an update to a food log must set at least one
 field:
@@ -468,7 +469,7 @@ existing environment values, then passes `JANUARY_API_KEY` explicitly to the SDK
   are ignored; unknown response enum values are accepted. Dates remain wire-format strings.
 - Default timeout is 30 seconds (120 for photo/description analysis and correction) for the entire call; configure `Config.Timeout` and pass a shorter
   context deadline when needed. Cancellation is preserved through `errors.Is`.
-- Two bounded retries by default, using stable API error codes and `Retry-After` (up to 60 seconds per wait and total server-requested waiting). Set `MaxRetries: january.Value(0)` to disable. Credit exhaustion and permanent errors are never retried. Token creation and food, water and weight-log creation are not replayed after ambiguous failures; revocation always makes one request. Retried analysis can consume additional credits. No automatic pagination or revoke-all loops. See [photos, errors and retries](docs/images-and-errors.md).
+- Two bounded retries by default, using stable API error codes and `Retry-After` (up to 60 seconds per wait and total server-requested waiting). Set `MaxRetries: january.Value(0)` to disable. Credit exhaustion and permanent errors are never retried. Token creation and food, water and weight-log creation are never replayed after an ambiguous failure (a timeout, lost response, or 5xx reply), since the API may already have recorded them; a 429 `rate_limited` reply means nothing was recorded, so those creates retry it like any other request. Revocation always makes one request. Retried analysis can consume additional credits. No automatic pagination or revoke-all loops. See [photos, errors and retries](docs/images-and-errors.md).
 - Production requests use the SDK's built-in HTTPS endpoint. Redirects are not followed.
 - Per-call `Response` includes status, cloned headers, request ID, Retry-After, and revoked count.
 - Inspect `*january.APIError` with `errors.As` for status, code, message, docs URL, and request ID.

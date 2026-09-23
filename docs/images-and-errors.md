@@ -52,8 +52,11 @@ bounded `Message`, and `RetryNote`. Only rate-limit and credit-limit codes overr
 HTTP status classification, matching Python. Never log arbitrary response data.
 
 The default is two retries. Stable permanent codes override retryable HTTP status;
-unknown codes fall back to 429/500/502/503/504. Backoff has jitter and all attempts
-share one deadline. Cancellation interrupts waiting. `Retry-After` accepts seconds
+unknown codes fall back to 429/500/502/503/504. Token creation and food, water and
+weight-log creation are never replayed after a timeout, lost response, or 5xx reply,
+because the API may already have recorded the write; a 429 `rate_limited` reply is a
+definitive rejection that recorded nothing, so it is retried within the same limits.
+Backoff has jitter and all attempts share one deadline. Cancellation interrupts waiting. `Retry-After` accepts seconds
 or an HTTP date; excessive waits return the error with `RetryNote` immediately.
 
 ## Tests and release
