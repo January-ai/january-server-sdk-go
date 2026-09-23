@@ -638,18 +638,23 @@ outer:
 	r.step("weightLogs.create", dependency(strings.HasPrefix(r.userID, runUserPrefix), "not_a_run_owned_user"), func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.WeightLogs.Create(ctx, january.CreateWeightLogRequest{Weight: january.Weight{Value: 70, Unit: january.WeightUnitKg}, MeasuredAt: january.Value(loggedAt)})
 		if err == nil {
+			// A success reply the runner cannot confirm leaves the weight's state unknown.
+			err = assert(value != nil && value.Weight.Value == 70 && value.Weight.Unit == january.WeightUnitKg && value.MeasuredAt != "")
+			if err != nil {
+				r.recordUnconfirmed("cleanup.weightLogs.unconfirmed", "weight_log_create_unconfirmed", loggedAt)
+				return meta, err
+			}
 			retained := result{Operation: "weightLogs.create", Status: "RETAINED", Reason: "no_delete_endpoint_run_user_only"}
 			r.report.Retained = append(r.report.Retained, retained)
 			if r.emit != nil {
 				r.emit(retained)
 			}
-		} else if createOutcomeUnknown(err) {
+			return meta, nil
+		}
+		if createOutcomeUnknown(err) {
 			r.recordUnconfirmed("cleanup.weightLogs.unconfirmed", "weight_log_create_unconfirmed", loggedAt)
 		}
-		if err != nil {
-			return meta, err
-		}
-		return meta, assert(value != nil && value.Weight.Value == 70 && value.Weight.Unit == january.WeightUnitKg && value.MeasuredAt != "")
+		return meta, err
 	})
 	r.step("weightLogs.list", "", func(ctx context.Context) (*january.Response, error) {
 		value, meta, err := r.user.WeightLogs.List(ctx, january.ListWeightLogsRequest{StartDate: r.day, EndDate: time.Now().UTC().Format("2006-01-02"), Timezone: "UTC"})
