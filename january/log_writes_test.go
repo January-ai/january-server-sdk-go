@@ -261,3 +261,64 @@ func TestClientTokenFacadeAcceptsLogScopes(t *testing.T) {
 		t.Fatalf("scopes not sent: %s", body)
 	}
 }
+
+// Weight is shared. A glucose profile takes 2–1500 lb or 1–700 kg; a weight-log
+// request narrows that to 10–1000 lb or 4.5–453.6 kg. Values outside the range of
+// their unit and endpoint are rejected before any request is sent.
+func TestWeightRangeDependsOnUnitAndEndpoint(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		if strings.HasSuffix(r.URL.Path, "/weight-logs") {
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write(fixtureFor(t, "createWeightLog").Response.Body)
+			return
+		}
+		_, _ = w.Write(fixtureFor(t, "predictGlucose").Response.Body)
+	}))
+	defer server.Close()
+	c, _ := NewClient(Config{SecretKey: "sk-test", BaseURL: server.URL, MaxRetries: Value(0)})
+	logWeight := func(value float64, unit WeightUnit) error {
+		_, _, err := c.WeightLogs.Create(context.Background(), CreateWeightLogRequest{Weight: Weight{Value: value, Unit: unit}})
+		return err
+	}
+	predict := func(value float64, unit WeightUnit) error {
+		_, _, err := c.Glucose.Predict(context.Background(), PredictGlucoseRequest{
+			UserProfile: GlucosePredictionProfile{Age: 30, Sex: SexMale, Height: Height{Value: 175, Unit: HeightUnitCm}, Weight: Weight{Value: value, Unit: unit}},
+			Timezone:    "UTC",
+			Foods:       []FoodLogInputFood{{FoodID: "84222716", ServingID: "67943292", Quantity: 1}},
+			StartTime:   "2026-09-10T12:00:00Z",
+		})
+		return err
+	}
+	for _, tc := range []struct {
+		endpoint          string
+		send              func(float64, WeightUnit) error
+		unit              WeightUnit
+		accepted, refused []float64
+	}{
+		{"weight log", logWeight, WeightUnitLb, []float64{10, 150, 1000}, []float64{2, 9.99, 1000.1, 1500}},
+		{"weight log", logWeight, WeightUnitKg, []float64{4.5, 70, 453.6}, []float64{1, 4.49, 453.7, 700}},
+		{"glucose profile", predict, WeightUnitLb, []float64{2, 9.99, 1000.1, 1500}, []float64{1, 1.99, 1500.1}},
+		{"glucose profile", predict, WeightUnitKg, []float64{1, 4.49, 453.7, 700}, []float64{0.99, 700.1, 1000}},
+	} {
+		for _, value := range tc.accepted {
+			before := calls.Load()
+			if err := tc.send(value, tc.unit); err != nil || calls.Load() != before+1 {
+				t.Errorf("%s: %v %s refused: %v", tc.endpoint, value, tc.unit, err)
+			}
+		}
+		for _, value := range tc.refused {
+			before := calls.Load()
+			if err := tc.send(value, tc.unit); !errors.Is(err, ErrInvalidInput) || calls.Load() != before {
+				t.Errorf("%s: %v %s accepted or sent: %v", tc.endpoint, value, tc.unit, err)
+			}
+		}
+	}
+	if err := logWeight(700, WeightUnitKg); err == nil || !strings.Contains(err.Error(), "body.weight.value must be from 4.5 through 453.6 kg") {
+		t.Fatalf("weight-log range not named: %v", err)
+	}
+	if err := predict(1000, WeightUnitKg); err == nil || !strings.Contains(err.Error(), "body.user_profile.weight.value must be from 1 through 700 kg") {
+		t.Fatalf("glucose profile range not named: %v", err)
+	}
+}

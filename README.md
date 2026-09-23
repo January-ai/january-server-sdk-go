@@ -346,8 +346,10 @@ corrected, _, err := user.FoodAnalysis.CorrectScan(ctx, *analysis, "make it thre
 
 Water and weight logs take the same end-user context as food logs. Water
 amounts are in `VolumeUnitFlOz` (1–811.5), `VolumeUnitCup` (0.125–101.4) or
-`VolumeUnitMl` (30–24000); a value outside its unit's range is rejected with
-`ErrInvalidInput` before any request. Water lists one total per local day in the unit you
+`VolumeUnitMl` (30–24000). A weight log takes `WeightUnitLb` (10–1000) or
+`WeightUnitKg` (4.5–453.6); a glucose profile's weight takes 2–1500 lb or 1–700 kg.
+A value outside its unit's range is rejected with `ErrInvalidInput` before any
+request. Water lists one total per local day in the unit you
 ask for; weight lists the latest measurement per local day. A water log can be
 deleted by its returned `ID`; an update to a food log must set at least one
 field:
