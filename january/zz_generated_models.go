@@ -469,11 +469,11 @@ type CreditBalance struct {
 	PeriodStart string `json:"period_start"`
 	// PeriodEnd: Last day of the current billing period (UTC), inclusive.
 	PeriodEnd string `json:"period_end"`
-	// ResetsAt: When the allowance resets and `used_credits` returns to 0.
+	// ResetsAt: When the billing period ends and the next begins: `used_credits` and the free-call count return to 0 and the request allowance reopens.
 	ResetsAt string `json:"resets_at"`
 	// IncludedCredits: Credits included in the plan for this period, or `null` when the plan has no ceiling.
 	IncludedCredits *int64 `json:"included_credits"`
-	// UsedCredits: Credits used so far this period. Billable operations consume credits — how many depends on the operation and your plan — while failed calls cost nothing.
+	// UsedCredits: Credits used so far this period. Each successful call costs the credits on the price list; failed calls cost nothing.
 	UsedCredits int64 `json:"used_credits"`
 	// RemainingCredits: Credits left in this period, or `null` when the plan has no ceiling.
 	RemainingCredits *int64 `json:"remaining_credits"`
@@ -653,7 +653,7 @@ type ErrorResponse struct {
 	//
 	// `POST /v1.2/food-analysis/image` adds four 400s about the image itself: `image_unreachable` (the URL could not be fetched), `image_corrupt` (the file could not be decoded), `image_format_unsupported` and `image_invalid_base64`. Each is fixed by the caller; the same image fails the same way again.
 	//
-	// Retry only `rate_limited`, `internal_error`, `upstream_error`, `service_unavailable`, `upstream_timeout` and `client_token_revocation_incomplete`, with backoff — `not_implemented` is permanent until the feature ships, so its 5xx status is not a reason to retry it. Three more the status code alone gets wrong. **Two 429s must never be retried**, because both reopen only at the start of the next calendar month: `credit_limit_exceeded` (the monthly credit allowance) and `request_limit_exceeded` (the monthly request allowance). A client that backs off on every 429 will spin until then; neither sends `Retry-After`, and the message names the reset instant — `GET /v1.2/credits` returns it as the resets_at field. `rate_limited` is the 429 that *is* worth retrying: a per-endpoint limit, or the rolling 24-hour burst guard over the monthly ceiling, so its window is at most a day. And `token_expired` is refreshed, not retried — mint a new token, then retry once.
+	// Retry only `rate_limited`, `internal_error`, `upstream_error`, `service_unavailable`, `upstream_timeout` and `client_token_revocation_incomplete`, with backoff — `not_implemented` is permanent until the feature ships, so its 5xx status is not a reason to retry it. Three more the status code alone gets wrong. **Two 429s must never be retried**, because both reopen only when your billing period resets: `credit_limit_exceeded` (the credit allowance for the period) and `request_limit_exceeded` (the request allowance for the period). A client that backs off on every 429 will spin until then; neither sends `Retry-After`, and the message names the reset instant — `GET /v1.2/credits` returns it as the resets_at field. `rate_limited` is the 429 that *is* worth retrying: a per-endpoint limit, or the rolling 24-hour burst guard over the request allowance, so its window is at most a day. And `token_expired` is refreshed, not retried — mint a new token, then retry once.
 	//
 	// New codes may be added over time; treat an unknown code according to its HTTP status class.
 	Code string `json:"code"`
