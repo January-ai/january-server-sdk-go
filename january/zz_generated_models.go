@@ -465,7 +465,7 @@ func (v CreateWeightLogRequest) GoString() string { return v.String() }
 // CreditBalance is generated from the January contract.
 type CreditBalance struct {
 	Plan CreditPlan `json:"plan"`
-	// PeriodStart: First day of the current billing period (UTC), inclusive.
+	// PeriodStart: First day of the current billing period (UTC), inclusive. In the month of a plan change that starts no new billing period (a move to Free, say), the day of the change, when the allowance restarted.
 	PeriodStart string `json:"period_start"`
 	// PeriodEnd: Last day of the current billing period (UTC), inclusive.
 	PeriodEnd string `json:"period_end"`
@@ -641,9 +641,9 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 	// Code: A stable machine-readable identifier for the class of failure — build retry logic on this, never on message wording.
 	//
-	// Any request, each with the status it usually accompanies: `invalid_request` (400), `unauthorized` (401), `forbidden` (403), `not_found` (404), `conflict` (409), `payload_too_large` (413), `rate_limited` (429), `request_limit_exceeded` (429), `credit_limit_exceeded` (429), `internal_error` (500), `not_implemented` (501), `upstream_error` (502), `service_unavailable` (503), `upstream_timeout` (504). Those pairings are the common case, not a guarantee: a status we do not map falls back to `invalid_request` below 500 and `internal_error` at or above it, so an internal service answering 422 reaches you with that status and `code: invalid_request`. Branch on the code first and treat the status as the fallback, exactly as for a code you do not recognise.
+	// Any request, each with the status it usually accompanies: `invalid_request` (400), `unauthorized` (401), `forbidden` (403), `not_found` (404), `conflict` (409), `payload_too_large` (413), `rate_limited` (429), `credit_limit_exceeded` (429), `internal_error` (500), `not_implemented` (501), `upstream_error` (502), `service_unavailable` (503), `upstream_timeout` (504). Those pairings are the common case, not a guarantee: a status we do not map falls back to `invalid_request` below 500 and `internal_error` at or above it, so an internal service answering 422 reaches you with that status and `code: invalid_request`. Branch on the code first and treat the status as the fallback, exactly as for a code you do not recognise.
 	//
-	// `conflict` (409) means the request conflicts with an existing resource, such as an Idempotency-Key reused with different files. Resolve the conflict before retrying.
+	// `conflict` (409) means the request conflicts with an existing resource, such as an Idempotency-Key reused with different files, or a stored food log that references a food or serving that is no longer available. Resolve the conflict before retrying.
 	//
 	// `cancelled` (499) means the client disconnected before completion. The closed connection may prevent delivery of the error body.
 	//
@@ -653,7 +653,7 @@ type ErrorResponse struct {
 	//
 	// `POST /v1.2/food-analysis/image` adds four 400s about the image itself: `image_unreachable` (the URL could not be fetched), `image_corrupt` (the file could not be decoded), `image_format_unsupported` and `image_invalid_base64`. Each is fixed by the caller; the same image fails the same way again.
 	//
-	// Retry only `rate_limited`, `internal_error`, `upstream_error`, `service_unavailable`, `upstream_timeout` and `client_token_revocation_incomplete`, with backoff — `not_implemented` is permanent until the feature ships, so its 5xx status is not a reason to retry it. Three more the status code alone gets wrong. **Two 429s must never be retried**, because both reopen only when your billing period resets: `credit_limit_exceeded` (the credit allowance for the period) and `request_limit_exceeded` (the request allowance for the period). A client that backs off on every 429 will spin until then; neither sends `Retry-After`, and the message names the reset instant — `GET /v1.2/credits` returns it as the resets_at field. `rate_limited` is the 429 that *is* worth retrying: a per-endpoint limit, or the rolling 24-hour burst guard over the request allowance, so its window is at most a day. And `token_expired` is refreshed, not retried — mint a new token, then retry once.
+	// Retry only `rate_limited`, `internal_error`, `upstream_error`, `service_unavailable`, `upstream_timeout` and `client_token_revocation_incomplete`, with backoff — `not_implemented` is permanent until the feature ships, so its 5xx status is not a reason to retry it. `credit_limit_exceeded` is the 429 that must not be retried: the credit allowance returns when the billing period resets. It sends no `Retry-After`; `GET /v1.2/credits` reports resets_at. `rate_limited` means a rolling abuse window was reached and is worth retrying with backoff. `Retry-After` is sent when that window's TTL is known. `token_expired` is refreshed, not retried — mint a new token, then retry once.
 	//
 	// New codes may be added over time; treat an unknown code according to its HTTP status class.
 	Code string `json:"code"`
@@ -1001,13 +1001,15 @@ func (v GetFoodRequest) GoString() string { return v.String() }
 
 // GetRestaurantMenuItemsRequest is generated from the January contract.
 type GetRestaurantMenuItemsRequest struct {
-	Limit        Optional[int64] `json:"limit"`
-	Offset       Optional[int64] `json:"offset"`
-	RestaurantID string          `json:"restaurant_id"`
+	Query        Optional[string] `json:"query"`
+	Limit        Optional[int64]  `json:"limit"`
+	Offset       Optional[int64]  `json:"offset"`
+	RestaurantID string           `json:"restaurant_id"`
 }
 
 func (v GetRestaurantMenuItemsRequest) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
+	putOptional(m, "query", v.Query)
 	putOptional(m, "limit", v.Limit)
 	putOptional(m, "offset", v.Offset)
 	m["restaurant_id"] = v.RestaurantID
@@ -1020,7 +1022,7 @@ func (v GetRestaurantMenuItemsRequest) GoString() string { return v.String() }
 
 // GetRestaurantMenuItemsResponse is generated from the January contract.
 type GetRestaurantMenuItemsResponse struct {
-	// Items: The menu items, by name. Empty when the restaurant has no menu on record.
+	// Items: The menu items, by name. Empty when the restaurant has no menu on record or nothing on it matches `query`.
 	Items []RestaurantMenuItem `json:"items"`
 }
 
@@ -1102,7 +1104,7 @@ type GlucosePredictionProfile struct {
 	Height        Height                  `json:"height"`
 	Weight        Weight                  `json:"weight"`
 	ActivityLevel Optional[ActivityLevel] `json:"activity_level"`
-	// HealthConditions: Omit it (or send []) if none apply. Type 1 diabetes is not supported by the prediction model.
+	// HealthConditions: Send [] (or omit it) when none of these apply; the prediction is then for a person without these conditions. Type 1 diabetes is not supported by the prediction model.
 	HealthConditions Optional[[]MedicalCondition] `json:"health_conditions"`
 }
 
@@ -1259,10 +1261,10 @@ type LoggedFood struct {
 	GlycemicLoad  *float64 `json:"glycemic_load"`
 	// Nutrients: Scaled to the consumed quantity.
 	Nutrients NutritionFacts `json:"nutrients"`
-	// Quantity: Number of selected servings consumed. Consumed amount = food.quantity × food.serving.quantity, in food.serving.unit (4 × 0.5 cup = 2 cups). Nutrients are already scaled to this portion. Null when unavailable.
+	// Quantity: Number of selected servings consumed. Consumed amount = food.quantity × food.serving.quantity, in food.serving.unit (4 × 0.5 cup = 2 cups), when food.serving.quantity is known. Nutrients are already scaled to this portion. Null when unavailable.
 	Quantity *float64 `json:"quantity"`
 	// Serving: The serving definition the quantity refers to.
-	Serving ServingSummary `json:"serving"`
+	Serving LoggedServing `json:"serving"`
 }
 
 func (v LoggedFood) MarshalJSON() ([]byte, error) {
@@ -1280,6 +1282,29 @@ func (v LoggedFood) MarshalJSON() ([]byte, error) {
 }
 func (v LoggedFood) String() string   { return "january.LoggedFood{[REDACTED]}" }
 func (v LoggedFood) GoString() string { return v.String() }
+
+// LoggedServing is generated from the January contract.
+type LoggedServing struct {
+	// ID: Catalog serving id. Pass it back as serving_id when logging this food.
+	ID string `json:"id"`
+	// Unit: Null only when the producer sent a serving with no unit.
+	Unit *string `json:"unit"`
+	// WeightGrams: Weight in grams of this serving definition. For food analysis and food logs this is one catalog serving, not the consumed portion: consumed grams = food.quantity × food.serving.weight_grams. Null when unknown.
+	WeightGrams *float64 `json:"weight_grams"`
+	// Quantity: Positive amount of unit represented by this catalog serving: consumed amount = food.quantity × food.serving.quantity (4 × 0.5 cup = 2 cups). Null when the catalog has no usable size for this serving; the consumed amount is then unknown, though nutrients are still scaled to food.quantity.
+	Quantity *float64 `json:"quantity"`
+}
+
+func (v LoggedServing) MarshalJSON() ([]byte, error) {
+	m := map[string]any{}
+	m["id"] = v.ID
+	m["unit"] = v.Unit
+	m["weight_grams"] = v.WeightGrams
+	m["quantity"] = v.Quantity
+	return json.Marshal(m)
+}
+func (v LoggedServing) String() string   { return "january.LoggedServing{[REDACTED]}" }
+func (v LoggedServing) GoString() string { return v.String() }
 
 // LookupFoodByBarcodeRequest is generated from the January contract.
 type LookupFoodByBarcodeRequest struct {
@@ -1576,12 +1601,15 @@ type ScanFoodPhotoBody struct {
 	Image string `json:"image"`
 	// Reasoning: Controls analysis effort. Omit it or set `effort` to `xhigh` to use the reasoning-based analyzer; `none` uses the standard analyzer. Both modes return the same FoodAnalysisResult shape and use the same rate-limit bucket and credit cost.
 	Reasoning Optional[AnalysisReasoning] `json:"reasoning"`
+	// Context: **Beta.** A note about the meal from the person or app that took the photo: details the image may not show, such as how it was cooked, oils and sauces, hidden ingredients, how many items, or the brand or restaurant. The analysis takes it into account alongside the photo.
+	Context Optional[string] `json:"context"`
 }
 
 func (v ScanFoodPhotoBody) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	m["image"] = v.Image
 	putOptional(m, "reasoning", v.Reasoning)
+	putOptional(m, "context", v.Context)
 	return json.Marshal(m)
 }
 func (v ScanFoodPhotoBody) String() string   { return "january.ScanFoodPhotoBody{[REDACTED]}" }
@@ -1593,12 +1621,15 @@ type ScanFoodPhotoRequest struct {
 	Image string `json:"image"`
 	// Reasoning: Controls analysis effort. Omit it or set `effort` to `xhigh` to use the reasoning-based analyzer; `none` uses the standard analyzer. Both modes return the same FoodAnalysisResult shape and use the same rate-limit bucket and credit cost.
 	Reasoning Optional[AnalysisReasoning] `json:"reasoning"`
+	// Context: **Beta.** A note about the meal from the person or app that took the photo: details the image may not show, such as how it was cooked, oils and sauces, hidden ingredients, how many items, or the brand or restaurant. The analysis takes it into account alongside the photo.
+	Context Optional[string] `json:"context"`
 }
 
 func (v ScanFoodPhotoRequest) MarshalJSON() ([]byte, error) {
 	m := map[string]any{}
 	m["image"] = v.Image
 	putOptional(m, "reasoning", v.Reasoning)
+	putOptional(m, "context", v.Context)
 	return json.Marshal(m)
 }
 func (v ScanFoodPhotoRequest) String() string   { return "january.ScanFoodPhotoRequest{[REDACTED]}" }

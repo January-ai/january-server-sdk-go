@@ -393,6 +393,7 @@
             "restaurant_id": "cafe-123"
           },
           "query": {
+            "query": "burger",
             "limit": 2,
             "offset": 1
           }
